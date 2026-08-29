@@ -34,8 +34,8 @@ jobs:
       - run: npm test
       - run: npm run test:coverage
       - run: npm run public-audit
-      - run: node --experimental-sqlite bin/build-p10-release.mjs --output .ci-release
-      - run: node --experimental-sqlite bin/build-p10-release.mjs --verify --output .ci-release
+      - run: node --experimental-sqlite bin/build-p10-release.mjs --output output/.ci-release
+      - run: node --experimental-sqlite bin/build-p10-release.mjs --verify --output output/.ci-release
 
   browser:
     runs-on: ubuntu-latest
