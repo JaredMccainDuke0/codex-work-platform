@@ -670,6 +670,11 @@ textarea {
   .order-item {
     background: #1b2a31;
   }
+  .notice {
+    background: #173b36;
+    border-color: #2f6f65;
+    color: #e7f1f2;
+  }
   .button.secondary,
   .button.danger {
     background: #1b2a31;
@@ -679,8 +684,23 @@ textarea {
     background: #0b1217;
     color: #dce9ec;
   }
+  .skip-link,
+  .toast {
+    background: #e7f1f2;
+    color: #102027;
+  }
   .nav-button {
     color: #b8c9ce;
+  }
+  .nav-button.active,
+  .button.primary {
+    background: #e7f1f2;
+    border-color: #e7f1f2;
+    color: #102027;
+  }
+  .order-number {
+    background: #e7f1f2;
+    color: #102027;
   }
   .nav-button:hover {
     background: #ffffff12;
