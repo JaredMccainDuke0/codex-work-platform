@@ -2802,10 +2802,10 @@ server.requestTimeout = 120_000;
 server.headersTimeout = 15_000;
 server.keepAliveTimeout = 5_000;
 process.once("SIGINT", () => {
-  void shutdown("SIGINT").then(() => process.exit());
+  void shutdown("SIGINT").then(() => process.exit(130));
 });
 process.once("SIGTERM", () => {
-  void shutdown("SIGTERM").then(() => process.exit());
+  void shutdown("SIGTERM").then(() => process.exit(143));
 });
 process.once("uncaughtException", (error) => {
   console.error(

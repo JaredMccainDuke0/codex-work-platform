@@ -33,6 +33,7 @@ const files = [
   "p10-state.mjs",
   "package-lock.json",
   "package.json",
+  ".prettierrc.json",
   "scripts/check-syntax.mjs",
   "scripts/dev.mjs",
   "scripts/e2e-smoke.mjs",

@@ -15,10 +15,14 @@ async function stopChild(child) {
   if (!child || child.exitCode !== null) return;
   const exited = new Promise((resolve) => child.once("exit", resolve));
   if (process.platform === "win32") {
-    const killer = spawn("taskkill.exe", ["/pid", String(child.pid), "/t", "/f"], {
-      windowsHide: true,
-      stdio: "ignore",
-    });
+    const killer = spawn(
+      "taskkill.exe",
+      ["/pid", String(child.pid), "/t", "/f"],
+      {
+        windowsHide: true,
+        stdio: "ignore",
+      },
+    );
     await new Promise((resolve) => {
       killer.once("error", resolve);
       killer.once("close", resolve);

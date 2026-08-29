@@ -98,7 +98,13 @@ export function assertNoSymlinkComponents(target) {
   for (const segment of relative.split(path.sep).filter(Boolean)) {
     current = path.join(current, segment);
     if (!fs.existsSync(current)) break;
-    if (fs.lstatSync(current).isSymbolicLink())
+    if (
+      fs.lstatSync(current).isSymbolicLink() &&
+      !(
+        process.platform === "darwin" &&
+        ["/var", "/tmp", "/etc"].includes(current.toLowerCase())
+      )
+    )
       throw Error(`SYMLINK_PATH_FORBIDDEN:${current}`);
   }
   return absolute;

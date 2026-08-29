@@ -326,6 +326,7 @@ export async function runSupervisor(input = {}) {
   let compat = null;
   let web = null;
   let shuttingDown = false;
+  let terminatingWeb = false;
   let restartInFlight = null;
   let consecutiveRestarts = 0;
   const restartHistory = [];
@@ -365,7 +366,12 @@ export async function runSupervisor(input = {}) {
         ]);
       } catch {}
     }
-    await terminateProcessTree(web);
+    terminatingWeb = true;
+    try {
+      await terminateProcessTree(web);
+    } finally {
+      terminatingWeb = false;
+    }
     await terminateProcessTree(compat);
     cleanupRuntimeFile();
     resolveExit(exitCode);
@@ -422,7 +428,14 @@ export async function runSupervisor(input = {}) {
     );
   };
   const startWeb = async () => {
-    if (web && web.exitCode === null) await terminateProcessTree(web);
+    if (web && web.exitCode === null) {
+      terminatingWeb = true;
+      try {
+        await terminateProcessTree(web);
+      } finally {
+        terminatingWeb = false;
+      }
+    }
     web = spawnService(
       "p10",
       config.p10Server,
@@ -454,7 +467,7 @@ export async function runSupervisor(input = {}) {
     );
     updateRuntime({ webPid: web.pid, state: "STARTING" });
     web.once("exit", (code, signal) => {
-      if (!shuttingDown) {
+      if (!shuttingDown && !terminatingWeb) {
         if (code === 0) void shutdown("web-requested-stop", 0);
         else void recover("web", `${code ?? signal ?? "unknown"}`);
       }
@@ -506,7 +519,12 @@ export async function runSupervisor(input = {}) {
         if (shuttingDown) return;
         try {
           if (kind === "compat") {
-            await terminateProcessTree(web);
+            terminatingWeb = true;
+            try {
+              await terminateProcessTree(web);
+            } finally {
+              terminatingWeb = false;
+            }
             web = null;
             await startCompat();
           }
