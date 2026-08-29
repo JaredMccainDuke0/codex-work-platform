@@ -1,0 +1,13 @@
+Codex Work Platform
+Copyright (c) 2026 Codex Work Platform contributors
+
+This repository contains a vendored compatibility runtime under
+release/compat-runtime. Its exact upstream sources, versions, build inputs,
+and applicable third-party notices are recorded in vendor/compat-runtime/
+SOURCES.json and vendor/compat-runtime/THIRD_PARTY_NOTICES.md. The current
+artifact is explicitly marked as a local bundle without an upstream commit;
+future releases should replace that limitation by rebuilding from a locked
+source checkout.
+
+Development-only npm dependencies and their licenses are indexed in
+THIRD_PARTY_NOTICES.md.

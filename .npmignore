@@ -1,0 +1,12 @@
+output/
+.local/
+coverage/
+.playwright-cli/
+codex-work-platform-backups/
+*.sqlite
+*.sqlite-*
+*.p10.json
+*.log
+.git/
+.github/
+tests/

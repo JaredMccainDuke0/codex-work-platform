@@ -1,0 +1,103 @@
+{
+  "status": "VERIFIED_LOCAL_ARTIFACT",
+  "auditDate": "2026-08-29",
+  "provenanceLevel": "LOCAL_BUNDLE_WITHOUT_UPSTREAM_COMMIT",
+  "provenanceNote": "The handoff contained the complete executable bundle but not its original build checkout. The bundle is retained byte-for-byte; no upstream commit is asserted.",
+  "artifact": "release/compat-runtime/plugins/codex-work-platform/runtime",
+  "upstream": "local compatibility-runtime bundle",
+  "commit": null,
+  "buildCommand": "retained prebuilt bundle; original checkout unavailable",
+  "dependencies": [
+    {
+      "name": "@modelcontextprotocol/sdk",
+      "version": "embedded-version-not-encoded",
+      "spdx": "MIT",
+      "source": "https://github.com/modelcontextprotocol/typescript-sdk"
+    },
+    {
+      "name": "ajv",
+      "version": "embedded-version-not-encoded",
+      "spdx": "MIT",
+      "source": "https://github.com/ajv-validator/ajv"
+    },
+    {
+      "name": "ajv-formats",
+      "version": "embedded-version-not-encoded",
+      "spdx": "MIT",
+      "source": "https://github.com/ajv-validator/ajv-formats"
+    },
+    {
+      "name": "fast-deep-equal",
+      "version": "embedded-version-not-encoded",
+      "spdx": "MIT",
+      "source": "https://github.com/epoberezkin/fast-deep-equal"
+    },
+    {
+      "name": "fast-uri",
+      "version": "embedded-version-not-encoded",
+      "spdx": "BSD-3-Clause",
+      "source": "https://github.com/fastify/fast-uri"
+    },
+    {
+      "name": "json-schema-traverse",
+      "version": "embedded-version-not-encoded",
+      "spdx": "MIT",
+      "source": "https://github.com/epoberezkin/json-schema-traverse"
+    },
+    {
+      "name": "sql.js",
+      "version": "embedded-version-not-encoded",
+      "spdx": "MIT",
+      "source": "https://github.com/sql-js/sql.js"
+    },
+    {
+      "name": "zod",
+      "version": "embedded-version-not-encoded",
+      "spdx": "MIT",
+      "source": "https://github.com/colinhacks/zod"
+    },
+    {
+      "name": "zod-to-json-schema",
+      "version": "embedded-version-not-encoded",
+      "spdx": "ISC",
+      "source": "https://github.com/StefanTerdell/zod-to-json-schema"
+    }
+  ],
+  "files": [
+    {
+      "path": "release/compat-runtime/plugins/codex-work-platform/.mcp.json",
+      "bytes": 127,
+      "sha256": "ca4e3e1142d1c6b0be319807d1d3e11fff5dbf8c0365252f51460fbaff06c0e5"
+    },
+    {
+      "path": "release/compat-runtime/plugins/codex-work-platform/.codex-plugin/plugin.json",
+      "bytes": 1791,
+      "sha256": "92971d13aec94f0904d99cc960730dfa3a50c0612b8a435c5cd68293fcd09ad6"
+    },
+    {
+      "path": "release/compat-runtime/plugins/codex-work-platform/runtime/build-manifest.json",
+      "bytes": 561,
+      "sha256": "1a03ef0c621018dffbc094276356be409e06629909ca11d5465b45f5dfa739ea"
+    },
+    {
+      "path": "release/compat-runtime/plugins/codex-work-platform/runtime/codex-work-platform.mjs",
+      "bytes": 518652,
+      "sha256": "1ecd864551ce8579c4166de56abccc30ffd85503774c282c6d8eb83e54c73fb5"
+    },
+    {
+      "path": "release/compat-runtime/plugins/codex-work-platform/runtime/mcp-server.mjs",
+      "bytes": 1135272,
+      "sha256": "3cd36eb0c3324385dcdadd3b1488bee6509d5f2302e25354d3eaa655f4230a38"
+    },
+    {
+      "path": "release/compat-runtime/plugins/codex-work-platform/runtime/sql-wasm.wasm",
+      "bytes": 659730,
+      "sha256": "438c88f666dc054ce4e9395f80fe9db4218b1a3c379960454880f048a7898aed"
+    },
+    {
+      "path": "release/compat-runtime/plugins/codex-work-platform/skills/codex-work-platform/SKILL.md",
+      "bytes": 4814,
+      "sha256": "c21e3ff6ffc7e08b16516ea1ad1ec2a27ff14fbeacd4cbe9717c86f1aebf38a6"
+    }
+  ]
+}

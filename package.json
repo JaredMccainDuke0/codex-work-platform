@@ -1,0 +1,50 @@
+{
+  "name": "codex-work-platform",
+  "version": "1.0.0",
+  "description": "A local-first Codex workflow workbench with approvals, durable state, and recoverable execution.",
+  "license": "MIT",
+  "files": [
+    "bin/",
+    "docs/",
+    "installer/",
+    "release/compat-runtime/",
+    "scripts/",
+    "web/",
+    "*.mjs",
+    "*.md",
+    "LICENSE",
+    "NOTICE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JaredMccainDuke0/codex-work-platform.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JaredMccainDuke0/codex-work-platform/issues"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "node --experimental-sqlite scripts/dev.mjs",
+    "start": "node --experimental-sqlite scripts/dev.mjs",
+    "check": "node scripts/check-syntax.mjs",
+    "format:check": "node scripts/format-check.mjs",
+    "test": "node --experimental-sqlite --test --test-concurrency=1 tests/*.test.mjs",
+    "test:coverage": "node --experimental-sqlite --experimental-test-coverage --test --test-concurrency=1 --test-coverage-include=p10-state.mjs --test-coverage-include=validation.mjs --test-coverage-include=workflow-core.mjs --test-coverage-lines=90 --test-coverage-branches=80 tests/*.test.mjs",
+    "test:coverage:all": "node --experimental-sqlite --experimental-test-coverage --test --test-concurrency=1 tests/*.test.mjs",
+    "test:installer": "node --experimental-sqlite --test tests/platform-manager.test.mjs",
+    "test:e2e": "node --experimental-sqlite scripts/e2e-smoke.mjs",
+    "public-audit": "node scripts/public-audit.mjs",
+    "public-audit:release": "node scripts/public-audit.mjs --release",
+    "build": "node --experimental-sqlite bin/build-p10-release.mjs",
+    "verify-release": "node --experimental-sqlite scripts/verify-release.mjs",
+    "release:check": "npm run check && npm run format:check && npm audit --audit-level=high && npm test && npm run test:coverage && npm run test:e2e && npm run public-audit:release && npm run build && npm run verify-release"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "prettier": "^3.9.6"
+  }
+}

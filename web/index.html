@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Codex Work Platform</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+    <header class="site-header">
+      <div>
+        <p class="eyebrow" data-i18n="localWorkbench">LOCAL WORKBENCH</p>
+        <h1>Codex Work Platform</h1>
+      </div>
+      <div class="header-actions">
+        <span id="freshness" class="freshness">Connecting…</span>
+        <button id="locale-toggle" class="button secondary" type="button">
+          中文
+        </button>
+      </div>
+    </header>
+
+    <main id="main" class="app-shell">
+      <nav class="main-nav" aria-label="Main navigation">
+        <button class="nav-button active" data-view="overview" type="button">
+          <span aria-hidden="true">⌂</span
+          ><span data-i18n="overview">Overview</span>
+        </button>
+        <button class="nav-button" data-view="workflows" type="button">
+          <span aria-hidden="true">◎</span
+          ><span data-i18n="workflows">Workflows</span
+          ><span id="nav-run-count" class="count">0</span>
+        </button>
+        <button class="nav-button" data-view="approvals" type="button">
+          <span aria-hidden="true">✓</span
+          ><span data-i18n="approvals">Approvals</span
+          ><span id="nav-approval-count" class="count">0</span>
+        </button>
+        <button class="nav-button" data-view="projects" type="button">
+          <span aria-hidden="true">▣</span
+          ><span data-i18n="projects">Projects</span>
+        </button>
+        <button class="nav-button" data-view="activity" type="button">
+          <span aria-hidden="true">≋</span
+          ><span data-i18n="activity">Activity</span>
+        </button>
+      </nav>
+
+      <div class="content-column">
+        <section
+          id="view-overview"
+          class="view"
+          aria-labelledby="overview-title"
+        >
+          <div class="view-heading">
+            <div>
+              <p class="eyebrow" data-i18n="dashboard">DASHBOARD</p>
+              <h2 id="overview-title" data-i18n="overviewTitle">
+                Workbench overview
+              </h2>
+              <p data-i18n="overviewSubtitle">
+                Project status, execution risk, and items that need your
+                attention.
+              </p>
+            </div>
+            <span id="live-status" class="status-live" role="status"
+              >Connecting…</span
+            >
+          </div>
+          <div
+            id="summary"
+            class="metric-grid"
+            aria-label="Platform summary"
+          ></div>
+          <p id="overview-status" class="notice" role="status">
+            Loading run state…
+          </p>
+          <div class="two-column">
+            <section class="panel">
+              <div class="panel-heading">
+                <h3 data-i18n="currentRuns">Current runs</h3>
+                <button
+                  class="button secondary"
+                  data-go="workflows"
+                  type="button"
+                  data-i18n="viewAll"
+                >
+                  View all
+                </button>
+              </div>
+              <div id="overview-runs" class="panel-body"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-heading">
+                <h3 data-i18n="needsAttention">Needs attention</h3>
+                <button
+                  class="button secondary"
+                  data-go="approvals"
+                  type="button"
+                  data-i18n="openApprovals"
+                >
+                  Open approvals
+                </button>
+              </div>
+              <div id="overview-approvals" class="panel-body"></div>
+            </section>
+          </div>
+          <section class="panel environment-panel">
+            <div class="panel-heading">
+              <h3 data-i18n="environment">Execution environment</h3>
+              <button
+                id="verify-environment"
+                class="button primary"
+                type="button"
+                data-i18n="verifyEnvironment"
+              >
+                Verify environment
+              </button>
+            </div>
+            <div class="panel-body">
+              <div class="environment-status">
+                <span id="environment-dot" class="status-dot"></span
+                ><strong id="environment-title">Checking Codex CLI…</strong
+                ><span id="environment-detail" class="muted"></span>
+              </div>
+              <p id="environment-provider" class="muted"></p>
+              <p id="environment-workspace" class="muted path-text"></p>
+              <p id="policy-summary" class="muted"></p>
+              <form id="workspace-form" class="form-inline compact-form">
+                <label
+                  ><span data-i18n="defaultDirectory"
+                    >Default project directory</span
+                  ><input
+                    id="workspace-root"
+                    type="text"
+                    spellcheck="false" /></label
+                ><button
+                  class="button secondary"
+                  type="submit"
+                  data-i18n="saveDirectory"
+                >
+                  Save directory</button
+                ><button
+                  id="pick-workspace"
+                  class="button secondary"
+                  type="button"
+                  data-i18n="chooseDirectory"
+                >
+                  Choose…
+                </button>
+              </form>
+            </div>
+          </section>
+        </section>
+
+        <section
+          id="view-workflows"
+          class="view"
+          hidden
+          aria-labelledby="workflows-title"
+        >
+          <div class="view-heading">
+            <div>
+              <p class="eyebrow" data-i18n="orchestration">ORCHESTRATION</p>
+              <h2 id="workflows-title" data-i18n="workflowsTitle">Workflows</h2>
+              <p data-i18n="workflowsSubtitle">
+                Define dependencies, review policies, and dispatch local Codex
+                runs.
+              </p>
+            </div>
+          </div>
+          <div class="two-column">
+            <section class="panel">
+              <div class="panel-heading">
+                <h3 data-i18n="newWorkflow">New workflow</h3>
+                <span class="muted" data-i18n="defineFirst"
+                  >Define first, run second</span
+                >
+              </div>
+              <form id="workflow-form" class="form-grid panel-body">
+                <label
+                  ><span data-i18n="name">Name</span
+                  ><input
+                    id="workflow-title"
+                    required
+                    maxlength="200"
+                    placeholder="Code review and repair" /></label
+                ><label
+                  ><span data-i18n="project">Project</span
+                  ><select id="workflow-project">
+                    <option value="" data-i18n="unboundProject">
+                      Unbound project
+                    </option>
+                  </select></label
+                ><label class="wide"
+                  ><span data-i18n="description">Description</span
+                  ><textarea
+                    id="workflow-description"
+                    maxlength="8000"
+                    placeholder="Goal and completion criteria"
+                  ></textarea></label
+                ><button
+                  class="button primary wide"
+                  type="submit"
+                  data-i18n="createWorkflow"
+                >
+                  Create workflow
+                </button>
+              </form>
+            </section>
+            <section class="panel">
+              <div class="panel-heading">
+                <h3 data-i18n="addNode">Add node</h3>
+                <span id="selected-workflow-version" class="muted"
+                  >Select a workflow</span
+                >
+              </div>
+              <form id="node-form" class="form-grid panel-body">
+                <label class="wide"
+                  ><span data-i18n="workflow">Workflow</span
+                  ><select id="node-workflow"></select></label
+                ><label
+                  ><span data-i18n="nodeTitle">Node title</span
+                  ><input
+                    id="node-title"
+                    required
+                    maxlength="200"
+                    placeholder="Inspect existing tests" /></label
+                ><label
+                  ><span data-i18n="adapter">Adapter</span
+                  ><select id="node-adapter">
+                    <option
+                      value="local-codex-app-server"
+                      data-i18n="appServer"
+                    >
+                      Local Codex App Server (session)
+                    </option>
+                    <option value="local-codex-cli">Local Codex CLI</option>
+                  </select></label
+                ><label
+                  ><span data-i18n="action">Action</span
+                  ><select id="node-action">
+                    <option value="RUN" data-i18n="readOnly">
+                      Read-only task
+                    </option>
+                    <option value="FILE_WRITE" data-i18n="fileChange">
+                      File change (approval required)
+                    </option>
+                    <option value="COMMAND" data-i18n="command">
+                      Command (approval required)
+                    </option>
+                    <option value="NETWORK" data-i18n="network">
+                      Network (approval required)
+                    </option>
+                  </select></label
+                ><label
+                  ><span data-i18n="model">Model</span
+                  ><input
+                    id="node-model"
+                    list="model-options"
+                    placeholder="auto or model ID" /></label
+                ><label
+                  ><span data-i18n="reasoning">Reasoning</span
+                  ><select id="node-reasoning">
+                    <option value="auto">Automatic</option>
+                    <option value="none">none</option>
+                    <option value="minimal">minimal</option>
+                    <option value="low">low</option>
+                    <option value="medium">medium</option>
+                    <option value="high">high</option>
+                    <option value="xhigh">xhigh</option>
+                  </select></label
+                ><label
+                  ><span data-i18n="maxRuntime">Max runtime (minutes)</span
+                  ><input
+                    id="node-timeout"
+                    type="number"
+                    min="1"
+                    max="1440"
+                    value="30" /></label
+                ><label
+                  ><span data-i18n="noProgress"
+                    >No-progress timeout (minutes)</span
+                  ><input
+                    id="node-no-progress"
+                    type="number"
+                    min="1"
+                    max="1440"
+                    value="5" /></label
+                ><label
+                  ><span data-i18n="maxAttempts">Max attempts</span
+                  ><input
+                    id="node-max-attempts"
+                    type="number"
+                    min="1"
+                    max="5"
+                    value="2"
+                /></label>
+                <details class="advanced-fields wide">
+                  <summary data-i18n="advancedOptions">
+                    Advanced execution options
+                  </summary>
+                  <div class="form-grid">
+                    <label
+                      ><span data-i18n="delegation">Delegation</span
+                      ><select id="node-delegation">
+                        <option value="DISABLED" data-i18n="disabled">
+                          Disabled
+                        </option>
+                        <option value="AUTO" data-i18n="autoDelegation">
+                          Automatic delegation
+                        </option>
+                      </select></label
+                    ><label
+                      ><span data-i18n="maxSubagents">Max subagents</span
+                      ><input
+                        id="node-max-subagents"
+                        type="number"
+                        min="1"
+                        max="6"
+                        value="4" /></label
+                    ><label
+                      ><span data-i18n="subagentModel">Subagent model</span
+                      ><input id="node-subagent-model" value="auto" /></label
+                    ><label
+                      ><span data-i18n="subagentReasoning"
+                        >Subagent reasoning</span
+                      ><select id="node-subagent-reasoning">
+                        <option value="auto">Automatic</option>
+                        <option value="none">none</option>
+                        <option value="minimal">minimal</option>
+                        <option value="low">low</option>
+                        <option value="medium">medium</option>
+                        <option value="high">high</option>
+                        <option value="xhigh">xhigh</option>
+                      </select></label
+                    ><label
+                      ><span data-i18n="tokenBudget">Token budget</span
+                      ><input
+                        id="node-token-budget"
+                        type="number"
+                        min="1" /></label
+                    ><label
+                      ><span data-i18n="costBudget">Cost budget</span
+                      ><input
+                        id="node-cost-budget"
+                        type="number"
+                        min="0.000001"
+                        step="any"
+                    /></label>
+                  </div>
+                </details>
+                <label class="wide"
+                  ><span data-i18n="promptTemplate">Prompt template</span
+                  ><textarea
+                    id="node-prompt"
+                    required
+                    maxlength="256000"
+                    placeholder="State the goal, inputs, constraints, and completion criteria"
+                  ></textarea></label
+                ><button
+                  class="button primary wide"
+                  type="submit"
+                  data-i18n="addNodeButton"
+                >
+                  Add node
+                </button>
+              </form>
+            </section>
+          </div>
+          <section class="panel">
+            <div class="panel-heading">
+              <h3 data-i18n="dependencies">Dependencies</h3>
+              <span class="muted" data-i18n="dependencyHint"
+                >Use slots to preview and save execution order.</span
+              >
+            </div>
+            <div id="order-editor" class="panel-body"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-heading">
+              <h3 data-i18n="workflowDefinitions">Workflow definitions</h3>
+              <span id="workflow-total" class="muted"></span>
+            </div>
+            <div id="workflow-list" class="panel-body"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-heading">
+              <h3 data-i18n="oneOffRun">Create a run</h3>
+              <span class="muted" data-i18n="oneOffHint">One-off task</span>
+            </div>
+            <form id="run-form" class="form-grid panel-body">
+              <label
+                ><span data-i18n="runTitle">Run title</span
+                ><input
+                  id="run-title"
+                  required
+                  maxlength="200"
+                  value="Web-dispatched Codex task" /></label
+              ><label
+                ><span data-i18n="adapter">Adapter</span
+                ><select id="run-adapter">
+                  <option value="local-codex-app-server" data-i18n="appServer">
+                    Local Codex App Server (session)
+                  </option>
+                  <option value="local-codex-cli">Local Codex CLI</option>
+                </select></label
+              ><label
+                ><span data-i18n="action">Action</span
+                ><select id="run-action">
+                  <option value="RUN" data-i18n="readOnly">
+                    Read-only task
+                  </option>
+                  <option value="FILE_WRITE" data-i18n="fileChange">
+                    File change (approval required)
+                  </option>
+                  <option value="COMMAND" data-i18n="command">
+                    Command (approval required)
+                  </option>
+                  <option value="NETWORK" data-i18n="network">
+                    Network (approval required)
+                  </option>
+                </select></label
+              ><label
+                ><span data-i18n="project">Project</span
+                ><select id="run-project">
+                  <option value="" data-i18n="unboundProject">
+                    Unbound project
+                  </option>
+                </select></label
+              ><label
+                ><span data-i18n="workingDirectory">Working directory</span
+                ><input id="run-cwd" spellcheck="false"
+              /></label>
+              <details class="advanced-fields wide">
+                <summary data-i18n="advancedOptions">
+                  Advanced execution options
+                </summary>
+                <div class="form-grid">
+                  <label
+                    ><span data-i18n="model">Model</span
+                    ><input
+                      id="run-model"
+                      list="model-options"
+                      value="auto" /></label
+                  ><label
+                    ><span data-i18n="reasoning">Reasoning</span
+                    ><select id="run-reasoning">
+                      <option value="auto">Automatic</option>
+                      <option value="none">none</option>
+                      <option value="minimal">minimal</option>
+                      <option value="low">low</option>
+                      <option value="medium">medium</option>
+                      <option value="high">high</option>
+                      <option value="xhigh">xhigh</option>
+                    </select></label
+                  ><label
+                    ><span data-i18n="delegation">Delegation</span
+                    ><select id="run-delegation">
+                      <option value="DISABLED" data-i18n="disabled">
+                        Disabled
+                      </option>
+                      <option value="AUTO" data-i18n="autoDelegation">
+                        Automatic delegation
+                      </option>
+                    </select></label
+                  ><label
+                    ><span data-i18n="maxSubagents">Max subagents</span
+                    ><input
+                      id="run-max-subagents"
+                      type="number"
+                      min="1"
+                      max="6"
+                      value="4" /></label
+                  ><label
+                    ><span data-i18n="subagentModel">Subagent model</span
+                    ><input id="run-subagent-model" value="auto" /></label
+                  ><label
+                    ><span data-i18n="subagentReasoning"
+                      >Subagent reasoning</span
+                    ><select id="run-subagent-reasoning">
+                      <option value="auto">Automatic</option>
+                      <option value="none">none</option>
+                      <option value="minimal">minimal</option>
+                      <option value="low">low</option>
+                      <option value="medium">medium</option>
+                      <option value="high">high</option>
+                      <option value="xhigh">xhigh</option>
+                    </select></label
+                  ><label
+                    ><span data-i18n="maxRuntime">Max runtime (minutes)</span
+                    ><input
+                      id="run-timeout"
+                      type="number"
+                      min="1"
+                      max="1440"
+                      value="30" /></label
+                  ><label
+                    ><span data-i18n="noProgress"
+                      >No-progress timeout (minutes)</span
+                    ><input
+                      id="run-no-progress"
+                      type="number"
+                      min="1"
+                      max="1440"
+                      value="5" /></label
+                  ><label
+                    ><span data-i18n="maxAttempts">Max attempts</span
+                    ><input
+                      id="run-max-attempts"
+                      type="number"
+                      min="1"
+                      max="5"
+                      value="2" /></label
+                  ><label
+                    ><span data-i18n="tokenBudget">Token budget</span
+                    ><input
+                      id="run-token-budget"
+                      type="number"
+                      min="1" /></label
+                  ><label
+                    ><span data-i18n="costBudget">Cost budget</span
+                    ><input
+                      id="run-cost-budget"
+                      type="number"
+                      min="0.000001"
+                      step="any"
+                  /></label>
+                </div>
+              </details>
+              <label class="wide"
+                ><span data-i18n="taskPrompt">Task prompt</span
+                ><textarea id="run-prompt" required maxlength="256000">
+Inspect the current project and return a structured report; do not modify files.</textarea></label
+              ><button
+                class="button primary wide"
+                type="submit"
+                data-i18n="createDispatch"
+              >
+                Create and dispatch
+              </button>
+            </form>
+          </section>
+          <section class="panel">
+            <div class="panel-heading">
+              <h3 data-i18n="allRuns">All runs</h3>
+              <span id="run-total" class="muted"></span>
+            </div>
+            <div id="run-list" class="panel-body"></div>
+          </section>
+        </section>
+
+        <section
+          id="view-approvals"
+          class="view"
+          hidden
+          aria-labelledby="approvals-title"
+        >
+          <div class="view-heading">
+            <div>
+              <p class="eyebrow" data-i18n="governance">GOVERNANCE</p>
+              <h2 id="approvals-title" data-i18n="approvalTitle">
+                Approval center
+              </h2>
+              <p data-i18n="approvalSubtitle">
+                Review high-risk execution and record every decision.
+              </p>
+            </div>
+          </div>
+          <section class="panel">
+            <div class="panel-heading">
+              <h3 data-i18n="pendingApprovals">Pending approvals</h3>
+            </div>
+            <div id="approval-list" class="panel-body"></div>
+          </section>
+        </section>
+
+        <section
+          id="view-projects"
+          class="view"
+          hidden
+          aria-labelledby="projects-title"
+        >
+          <div class="view-heading">
+            <div>
+              <p class="eyebrow" data-i18n="context">CONTEXT</p>
+              <h2 id="projects-title" data-i18n="projectsTitle">
+                Projects and briefs
+              </h2>
+              <p data-i18n="projectsSubtitle">
+                Keep goals, decisions, ownership, and pitfalls close to the
+                work.
+              </p>
+            </div>
+            <button
+              id="new-project-toggle"
+              class="button primary"
+              type="button"
+              data-i18n="newProject"
+            >
+              New project
+            </button>
+          </div>
+          <form id="project-form" class="panel form-inline" hidden>
+            <label
+              ><span data-i18n="projectName">Project name</span
+              ><input id="project-title" required maxlength="200" /></label
+            ><button
+              class="button primary"
+              type="submit"
+              data-i18n="createProject"
+            >
+              Create project
+            </button>
+          </form>
+          <div class="project-layout">
+            <section class="panel">
+              <div class="panel-heading">
+                <h3 data-i18n="projects">Projects</h3>
+              </div>
+              <div id="project-list" class="panel-body"></div>
+            </section>
+            <aside
+              id="brief-panel"
+              class="panel brief-panel"
+              aria-live="polite"
+            >
+              <p class="muted" data-i18n="selectProject">
+                Select a project to view its brief.
+              </p>
+            </aside>
+          </div>
+        </section>
+
+        <section
+          id="view-activity"
+          class="view"
+          hidden
+          aria-labelledby="activity-title"
+        >
+          <div class="view-heading">
+            <div>
+              <p class="eyebrow" data-i18n="observability">OBSERVABILITY</p>
+              <h2 id="activity-title" data-i18n="activityTitle">
+                Activity and audit
+              </h2>
+              <p data-i18n="activitySubtitle">
+                Follow live events, verified artifacts, and local Codex
+                conversations.
+              </p>
+            </div>
+          </div>
+          <div class="two-column">
+            <section class="panel">
+              <div class="panel-heading">
+                <h3 data-i18n="events">Events</h3>
+                <button
+                  id="load-more-events"
+                  class="button secondary"
+                  type="button"
+                  data-i18n="loadMore"
+                >
+                  Load more
+                </button>
+              </div>
+              <div class="panel-body">
+                <label class="filter-field"
+                  ><span data-i18n="filterEvents">Filter events</span
+                  ><input
+                    id="event-filter"
+                    type="search"
+                    placeholder="RUN_ or approval"
+                /></label>
+                <ol id="event-list" class="event-list"></ol>
+              </div>
+            </section>
+            <section class="panel">
+              <div class="panel-heading">
+                <h3 data-i18n="conversations">Codex conversations</h3>
+              </div>
+              <div class="panel-body">
+                <label
+                  ><span data-i18n="conversation">Conversation</span
+                  ><select id="conversation-select">
+                    <option value="" data-i18n="noConversations">
+                      No resumable conversations
+                    </option>
+                  </select></label
+                >
+                <pre
+                  id="conversation-transcript"
+                  class="transcript"
+                  tabindex="0"
+                >
+Select a conversation to view its history.</pre>
+                <form id="conversation-form" class="conversation-form">
+                  <textarea
+                    id="conversation-prompt"
+                    maxlength="256000"
+                    placeholder="Continue the conversation…"
+                  ></textarea
+                  ><button
+                    class="button primary"
+                    type="submit"
+                    data-i18n="sendFollowup"
+                  >
+                    Send follow-up
+                  </button>
+                </form>
+              </div>
+            </section>
+          </div>
+        </section>
+      </div>
+    </main>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <datalist id="model-options">
+      <option value="gpt-5.6-sol"></option>
+      <option value="gpt-5.6-terra"></option>
+      <option value="gpt-5.6-luna"></option>
+      <option value="gpt-5.3-codex"></option>
+      <option value="codex-mini-latest"></option>
+    </datalist>
+    <script type="module" src="/assets/app.js"></script>
+  </body>
+</html>

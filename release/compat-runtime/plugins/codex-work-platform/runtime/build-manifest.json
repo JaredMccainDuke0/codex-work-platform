@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "plugin": "codex-work-platform",
+  "version": "1.0.0",
+  "files": [
+    {
+      "name": "mcp-server.mjs",
+      "bytes": 1135272,
+      "sha256": "3cd36eb0c3324385dcdadd3b1488bee6509d5f2302e25354d3eaa655f4230a38"
+    },
+    {
+      "name": "codex-work-platform.mjs",
+      "bytes": 518652,
+      "sha256": "1ecd864551ce8579c4166de56abccc30ffd85503774c282c6d8eb83e54c73fb5"
+    },
+    {
+      "name": "sql-wasm.wasm",
+      "bytes": 659730,
+      "sha256": "438c88f666dc054ce4e9395f80fe9db4218b1a3c379960454880f048a7898aed"
+    }
+  ]
+}

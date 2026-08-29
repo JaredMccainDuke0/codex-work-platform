@@ -1,0 +1,50 @@
+# Local dependencies and caches
+node_modules/
+.npm/
+.cache/
+.playwright-cli/
+coverage/
+
+# Local runtime state and databases
+output/
+.local/
+*.sqlite
+*.sqlite-*
+*.p10.json
+*.p10.json.tmp*
+*.p10.json.legacy-*
+*.db
+*.db-*
+logs/
+*.log
+runtime/
+!release/compat-runtime/plugins/codex-work-platform/runtime/
+!release/compat-runtime/plugins/codex-work-platform/runtime/**
+platform-config.json
+installation.json
+mcp-config.json
+
+# Credentials and environment files
+.env
+.env.*
+!.env.example
+auth.json
+**/.codex/
+**/credentials*
+**/*token*
+**/*secret*
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+
+# Temporary build and backup material
+*.building-*
+.ci-release/
+*.staging/
+*.previous-*
+*.failed/
+codex-work-platform-backups/

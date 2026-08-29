@@ -1,0 +1,27 @@
+{
+  "name": "codex-work-platform",
+  "version": "1.0.0",
+  "description": "Local Codex work-platform compatibility runtime with recoverable operations and source-bound project explanations.",
+  "author": {
+    "name": "Codex Work Platform"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Codex Work Platform",
+    "shortDescription": "Local projects, reliable work and governed information candidates.",
+    "longDescription": "A local Codex work-platform compatibility runtime backed by a local control kernel, immutable checkpoints, source-bound project explanations, bounded public search, approval-gated knowledge, redacted user-imported official-information candidates and recoverable installation operations.",
+    "developerName": "Codex Work Platform",
+    "category": "Productivity",
+    "capabilities": ["projects", "tasks", "todos", "project-brief", "task-explanations", "source-audit", "candidates", "context", "recovery", "long-tasks", "checkpoints", "leases", "budgets", "public-search", "source-evidence", "knowledge-candidates", "dependency-invalidation", "official-information-import", "local-consent", "redaction", "deduplication", "recoverable-install", "upgrade-backup", "diagnostics"],
+    "defaultPrompt": [
+      "Show my local project state and recent events.",
+      "Show the selected project's goals, steps, decisions, owner statements and pitfalls.",
+      "Create a project with a safe retry key.",
+      "Open the read-only local control page.",
+      "Run a staged task with checkpoints and bounded recovery.",
+      "Search public sources and prepare a sourced knowledge candidate for approval.",
+      "Import a user-provided message export as redacted candidates under revocable local consent."
+    ]
+  },
+  "mcpServers": "./.mcp.json"
+}

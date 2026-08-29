@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            node: "22.x"
+          - os: windows-latest
+            node: "22.x"
+          - os: macos-14
+            node: "22.x"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm run check
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run test:coverage
+      - run: npm run public-audit
+      - run: node --experimental-sqlite bin/build-p10-release.mjs --output .ci-release
+      - run: node --experimental-sqlite bin/build-p10-release.mjs --verify --output .ci-release
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
