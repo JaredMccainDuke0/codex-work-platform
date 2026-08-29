@@ -103,6 +103,26 @@ const executable = new Set([
   "bin/workbench-supervisor.mjs",
   "install-macos.command",
 ]);
+const textExtensions = new Set([
+  ".mjs",
+  ".js",
+  ".json",
+  ".md",
+  ".html",
+  ".css",
+  ".ps1",
+  ".command",
+  ".cmd",
+  ".yml",
+  ".yaml",
+  ".txt",
+]);
+function canonicalSourceBytes(source, relativePath) {
+  const bytes = fs.readFileSync(source);
+  if (!textExtensions.has(path.extname(relativePath).toLowerCase()))
+    return bytes;
+  return Buffer.from(bytes.toString("utf8").replace(/\r\n?/g, "\n"), "utf8");
+}
 
 export function buildPortableRelease(outputRootInput = defaultOutputRoot) {
   const outputRoot = assertNarrowRoot(
@@ -129,7 +149,9 @@ export function buildPortableRelease(outputRootInput = defaultOutputRoot) {
       if (!fs.existsSync(source) || !fs.statSync(source).isFile())
         throw Error(`BUILD_SOURCE_MISSING:${sourceRelative}`);
       fs.mkdirSync(path.dirname(target), { recursive: true });
-      fs.copyFileSync(source, target, fs.constants.COPYFILE_EXCL);
+      fs.writeFileSync(target, canonicalSourceBytes(source, sourceRelative), {
+        flag: "wx",
+      });
       if (process.platform !== "win32")
         fs.chmodSync(target, executable.has(targetRelative) ? 0o755 : 0o644);
     }
@@ -141,7 +163,7 @@ export function buildPortableRelease(outputRootInput = defaultOutputRoot) {
       version: P10_VERSION,
       manifestSelf: "EXCLUDED_SELF_REFERENCE",
       portabilityRule:
-        "File bytes and SHA-256 are authoritative across Windows and macOS; executable is applied on POSIX installation.",
+        "Text sources are normalized to LF; file bytes and SHA-256 are authoritative across Windows and macOS; executable is applied on POSIX installation.",
       treeSha256: recordsSha256(files),
       files,
     };

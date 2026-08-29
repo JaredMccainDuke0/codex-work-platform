@@ -15,7 +15,8 @@ npm run verify-release -- ./output/codex-work-platform-1.0.0-portable
 ```
 
 The build writes `p10-release.json`, whose manifest SHA-256 and tree SHA-256
-are the release identity. Existing output directories are moved to a uniquely
+are the release identity. Text sources are canonicalized to LF so a Windows
+checkout and a Unix checkout produce the same manifest. Existing output directories are moved to a uniquely
 named `.previous-*` sibling; the builder does not prune those archives.
 
 GitHub Actions repeats the checks on Linux, Windows, and macOS arm64 runners
