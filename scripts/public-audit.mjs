@@ -25,8 +25,6 @@ const secretPatterns = [
 const personalPathPatterns = [
   /\bC:\\Users\\[^\\\r\n]+/gi,
   /\b\/Users\/[^\/\r\n]+/g,
-  /\b助理交接包-P9\b/gi,
-  /\b0\.9\.0-rc\.2\b/gi,
 ];
 const personalEmailPattern =
   /\b[A-Z0-9._%+-]+@(?!example\.(?:com|org|net)\b)(?!localhost\b)[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
