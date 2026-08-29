@@ -91,6 +91,12 @@ try {
     title: document.title,
     scrollWidth: document.documentElement.scrollWidth,
     innerWidth: window.innerWidth,
+    colorScheme: getComputedStyle(document.documentElement).colorScheme,
+    panelBackground: getComputedStyle(document.querySelector(".panel"))
+      .backgroundColor,
+    transcriptBackground: getComputedStyle(
+      document.querySelector(".transcript"),
+    ).backgroundColor,
     shellWidth: document
       .querySelector(".content-column")
       ?.getBoundingClientRect().width,
@@ -98,6 +104,12 @@ try {
   if (errors.length) throw Error(`E2E_CONSOLE_ERRORS:${errors.join(" | ")}`);
   if (metrics.scrollWidth > metrics.innerWidth)
     throw Error(`E2E_HORIZONTAL_OVERFLOW:${JSON.stringify(metrics)}`);
+  if (metrics.colorScheme !== "light")
+    throw Error(`E2E_NOT_LIGHT_THEME:${JSON.stringify(metrics)}`);
+  if (metrics.panelBackground !== "rgb(255, 255, 255)")
+    throw Error(`E2E_PANEL_NOT_LIGHT:${JSON.stringify(metrics)}`);
+  if (metrics.transcriptBackground !== "rgb(244, 250, 255)")
+    throw Error(`E2E_TRANSCRIPT_NOT_LIGHT:${JSON.stringify(metrics)}`);
   console.log(JSON.stringify({ ok: true, metrics }));
   await browser.close();
 } finally {

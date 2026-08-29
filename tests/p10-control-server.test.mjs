@@ -1161,6 +1161,7 @@ test("rendered workbench serves a standalone secure UI shell", async (t) => {
   const html = await response.text();
   assert.equal(response.status, 200);
   assert.match(html, /\/assets\/app\.js/);
+  assert.match(html, /name="color-scheme" content="light"/);
   assert.match(
     response.headers.get("content-security-policy"),
     /script-src 'self'/,
@@ -1169,6 +1170,11 @@ test("rendered workbench serves a standalone secure UI shell", async (t) => {
     result.text(),
   );
   assert.doesNotThrow(() => new vm.Script(js, { filename: "web/app.js" }));
+  const css = await fetch(`${url}/assets/styles.css`).then((result) =>
+    result.text(),
+  );
+  assert.match(css, /color-scheme:\s*light/);
+  assert.doesNotMatch(css, /prefers-color-scheme:\s*dark/);
   assert.equal((await fetch(`${url}/api/p10/client-config`)).status, 200);
   assert.equal((await fetch(`${url}/assets/..%2Fpackage.json`)).status, 404);
 });

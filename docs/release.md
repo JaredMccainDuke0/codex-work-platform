@@ -10,7 +10,7 @@ npm test
 npm run test:coverage
 npm run test:e2e
 npm run public-audit:release
-npm run build -- --version 1.0.0 --output ./output/codex-work-platform-1.0.0-portable
+npm run build -- -- --version 1.0.0 --output ./output/codex-work-platform-1.0.0-portable
 npm run verify-release -- ./output/codex-work-platform-1.0.0-portable
 ```
 

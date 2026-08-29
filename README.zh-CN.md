@@ -28,9 +28,12 @@ npm run dev
 构建并校验便携包：
 
 ```bash
-npm run build -- --output ./output/codex-work-platform-1.0.0-portable
+npm run build -- -- --output ./output/codex-work-platform-1.0.0-portable
 npm run verify-release -- ./output/codex-work-platform-1.0.0-portable
 ```
+
+多出的一个 `--` 用于兼容不同 npm 版本的参数转发；也可以直接运行
+`node --experimental-sqlite bin/build-p10-release.mjs --output <目录>`。
 
 启动器优先使用 19737/19738；如果被占用，会选择下一组可用端口并写入
 `platform-config.json`。浏览器会等待 `/readyz` 通过后再读取数据。
@@ -51,6 +54,8 @@ npm run verify-release -- ./output/codex-work-platform-1.0.0-portable
 
 界面默认英文，可切换中文。工作台派发任务后，Codex Desktop 可以实时显示
 对应对话，无需重启。
+
+界面采用明亮浅色主题，即使操作系统设置为深色模式也不会切换成暗色界面。
 
 更多说明请阅读英文版 [README.md](README.md)、[贡献指南](CONTRIBUTING.md)
 和[安全策略](SECURITY.md)。

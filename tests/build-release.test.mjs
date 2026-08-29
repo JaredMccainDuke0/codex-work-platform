@@ -35,6 +35,28 @@ test("portable build honors an explicit output path and is independently verifia
   assert.equal(verified.treeSha256, result.treeSha256);
 });
 
+test("build CLI accepts npm's forwarded argument separator", async (t) => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "cwp-build-npm-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const output = path.join(dir, "release");
+  const child = spawn(
+    process.execPath,
+    [path.join(root, "bin", "build-p10-release.mjs"), "--", "--output", output],
+    { cwd: root, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
+  );
+  let stdout = "";
+  let stderr = "";
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk.toString();
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk.toString();
+  });
+  const code = await new Promise((resolve) => child.once("close", resolve));
+  assert.equal(code, 0, stderr || stdout);
+  assert.equal(JSON.parse(stdout.trim()).outputRoot, output);
+});
+
 test("build function preserves an existing output as a recoverable sibling", async (t) => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "cwp-build-swap-"));
   t.after(() => rm(dir, { recursive: true, force: true }));

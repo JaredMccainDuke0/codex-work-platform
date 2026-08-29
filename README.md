@@ -14,6 +14,9 @@ The workbench binds to loopback only. A supervisor starts the web control
 service and the compatibility runtime for you; users do not need to launch
 the internal services separately.
 
+The interface intentionally uses a bright, light theme and remains readable
+when the operating system is configured for dark mode.
+
 ## Requirements
 
 - Windows 10/11, macOS arm64, or Linux for development;
@@ -70,9 +73,13 @@ option is supplied.
 To create a portable directory locally:
 
 ```bash
-npm run build -- --output ./output/codex-work-platform-1.0.0-portable
+npm run build -- -- --output ./output/codex-work-platform-1.0.0-portable
 npm run verify-release -- ./output/codex-work-platform-1.0.0-portable
 ```
+
+The extra `--` keeps option forwarding reliable across npm versions. You can
+also invoke the build CLI directly with `node --experimental-sqlite
+bin/build-p10-release.mjs --output <directory>`.
 
 The Windows and macOS installer scripts run the same preflight checks and keep
 application files, user data, and the selected workspace in separate roots.

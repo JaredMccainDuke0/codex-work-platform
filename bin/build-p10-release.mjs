@@ -204,6 +204,10 @@ if (invokedPath === modulePath) {
     const flags = new Map();
     for (let index = 2; index < process.argv.length; index += 1) {
       const flag = process.argv[index];
+      // npm 10/11 may forward an extra argument separator when a script is
+      // invoked as `npm run build -- -- --output <dir>`; tolerate it so the
+      // direct Node CLI and npm script behave identically.
+      if (flag === "--") continue;
       if (flag === "--verify") {
         flags.set("--verify", true);
         continue;
