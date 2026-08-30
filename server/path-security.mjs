@@ -41,7 +41,7 @@ export function sensitiveDirectory(
   { platform = process.platform, home = os.homedir(), env = process.env } = {},
 ) {
   const resolved = safetyPath(candidate).toLowerCase();
-  const normalizedHome = home.toLowerCase();
+  const normalizedHome = safetyPath(home).toLowerCase();
   const forbidden = [path.join(normalizedHome, ".codex").toLowerCase()];
   if (platform === "win32")
     forbidden.push(
