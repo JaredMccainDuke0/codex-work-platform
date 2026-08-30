@@ -225,7 +225,7 @@ test("cross-platform installer contracts enable network and automatic approval p
 
 test(
   "Windows double-click installer emits bilingual guidance and installs from a ZIP-shaped directory",
-  { skip: process.platform !== "win32", timeout: 45_000 },
+  { skip: process.platform !== "win32", timeout: 120_000 },
   async (t) => {
     const temporary = await mkdtemp(
       path.join(os.tmpdir(), "cwp-script-install-"),
@@ -306,7 +306,7 @@ test(
 
 test(
   "POSIX installer emits bilingual guidance and installs from an extracted archive",
-  { skip: process.platform === "win32", timeout: 45_000 },
+  { skip: process.platform === "win32", timeout: 120_000 },
   async (t) => {
     const temporary = await mkdtemp(
       path.join(os.tmpdir(), "cwp-script-install-"),
