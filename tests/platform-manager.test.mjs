@@ -169,6 +169,7 @@ test("Windows and macOS default layouts keep app, data and workspace separate", 
   assert.equal(compareP10Versions("1.2.0-dev.3", "1.2.0-dev.2"), 1);
   assert.equal(compareP10Versions("1.2.0", "1.2.0-rc.1"), 1);
   assert.equal(compareP10Versions("1.2.0-dev.1", "1.2.0-dev.1"), 0);
+  assert.equal(compareP10Versions("1.1.0", "1.0.9"), 1);
 });
 
 test("port selection moves to the next free pair when preferred ports are occupied", async (t) => {

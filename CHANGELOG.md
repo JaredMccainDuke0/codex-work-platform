@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-30
+
+- Extract control-service configuration, HTTP, path security, error mapping,
+  directory picker, redaction, idempotency, static assets, and compatibility
+  transport into independently tested modules.
+- Bound compatibility responses consistently and clean up failed project
+  directory creation when the upstream response is unavailable or invalid.
+- Record the compatibility bundle's recovered module-layout evidence and a
+  source-replacement acceptance contract without claiming unavailable
+  provenance.
+
 ## [1.0.1] - 2026-08-30
 
 - Use a bright light-only interface with improved mobile navigation,
@@ -22,6 +33,7 @@
   verification.
 - English-first interface with a switchable Chinese locale.
 
-[Unreleased]: https://github.com/JaredMccainDuke0/codex-work-platform/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/JaredMccainDuke0/codex-work-platform/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/JaredMccainDuke0/codex-work-platform/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/JaredMccainDuke0/codex-work-platform/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/JaredMccainDuke0/codex-work-platform/releases/tag/v1.0.0

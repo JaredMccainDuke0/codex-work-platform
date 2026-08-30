@@ -73,8 +73,8 @@ option is supplied.
 To create a portable directory locally:
 
 ```bash
-npm run build -- -- --output ./output/codex-work-platform-1.0.1-portable
-npm run verify-release -- ./output/codex-work-platform-1.0.1-portable
+npm run build -- -- --output ./output/codex-work-platform-1.1.0-portable
+npm run verify-release -- ./output/codex-work-platform-1.1.0-portable
 ```
 
 The extra `--` keeps option forwarding reliable across npm versions. You can
@@ -199,6 +199,11 @@ updates must add a locked source checkout before claiming full reproducibility.
 
 The vendored compatibility runtime currently remains at component version
 1.0.0. Its version is intentionally independent from the workbench release.
+The original TypeScript checkout and lockfile could not be recovered after a
+local, Git-history, and public-source search. See the documented
+[recovery evidence](vendor/compat-runtime/RECOVERY.md) and
+[replacement contract](vendor/compat-runtime/CONTRACT.md); neither document
+pretends that the generated bundle is source code.
 
 ## Development and security
 

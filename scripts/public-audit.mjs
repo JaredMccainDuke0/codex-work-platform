@@ -194,6 +194,64 @@ const vendorSource = path.join(
   "SOURCES.json",
 );
 const vendor = JSON.parse(fs.readFileSync(vendorSource, "utf8"));
+const recovery = vendor.recovery;
+if (!recovery || typeof recovery !== "object")
+  findings.push({
+    type: "vendor-recovery-record-missing",
+    path: "vendor/compat-runtime/SOURCES.json",
+  });
+else {
+  for (const field of ["evidence", "replacementContract", "machineContract"]) {
+    const relative = String(recovery[field] || "");
+    if (!relative || !fs.existsSync(path.join(root, relative)))
+      findings.push({
+        type: "vendor-recovery-document-missing",
+        field,
+        path: relative,
+      });
+  }
+  const runtimeBundle = path.join(
+    root,
+    "release",
+    "compat-runtime",
+    "plugins",
+    "codex-work-platform",
+    "runtime",
+    "codex-work-platform.mjs",
+  );
+  const runtimeText = fs.readFileSync(runtimeBundle, "utf8");
+  for (const sourceModule of recovery.bundleModuleComments || [])
+    if (!runtimeText.includes(`// ${sourceModule}`))
+      findings.push({
+        type: "vendor-module-evidence-missing",
+        path: sourceModule,
+      });
+  const contractPath = path.join(root, String(recovery.machineContract || ""));
+  if (fs.existsSync(contractPath)) {
+    const contract = JSON.parse(fs.readFileSync(contractPath, "utf8"));
+    const mcpBundle = fs.readFileSync(
+      path.join(
+        root,
+        "release",
+        "compat-runtime",
+        "plugins",
+        "codex-work-platform",
+        "runtime",
+        "mcp-server.mjs",
+      ),
+      "utf8",
+    );
+    for (const command of contract.cliCommands || [])
+      if (!runtimeText.includes(`"${command}"`))
+        findings.push({ type: "vendor-cli-contract-missing", command });
+    for (const httpPath of contract.httpPaths || [])
+      if (!runtimeText.includes(`"${httpPath}"`))
+        findings.push({ type: "vendor-http-contract-missing", path: httpPath });
+    for (const tool of contract.mcpTools || [])
+      if (!mcpBundle.includes(`"${tool}"`))
+        findings.push({ type: "vendor-mcp-contract-missing", tool });
+  }
+}
 const noticesPath = path.join(
   root,
   "vendor",

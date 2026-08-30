@@ -25,8 +25,10 @@ does not require rendering the complete event log in the browser.
 
 All JSON request bodies are objects and are capped at 4 MiB. URLs are capped at
 8 KiB, concurrent requests are bounded, and upstream compatibility responses
-are capped at 8 MiB. Errors return a stable `code` and a short safe message;
-they do not include stack traces or credentials.
+are capped at 8 MiB. Invalid or oversized compatibility responses return a 502
+class error, while an unavailable compatibility process returns 503. Errors
+return a stable `code` and a short safe message; they do not include stack
+traces or credentials.
 
 Every mutating operation accepts an `Idempotency-Key`. Clients should reuse
 the same key when retrying a request and must not place credentials in JSON

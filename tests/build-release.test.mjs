@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { buildPortableRelease } from "../bin/build-p10-release.mjs";
@@ -118,5 +118,20 @@ test("build CLI rejects a mismatched version and source-tree overwrite", async (
   assert.throws(
     () => buildPortableRelease(root),
     /BUILD_OUTPUT_SOURCE_OVERLAP/,
+  );
+});
+
+test("release identity rejects non-canonical semantic versions", async (t) => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "cwp-build-version-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const output = path.join(dir, "release");
+  buildPortableRelease(output);
+  const manifestPath = path.join(output, "p10-release.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  manifest.version = "01.1.0";
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  assert.throws(
+    () => verifyPortableRelease(output),
+    /P10_RELEASE_IDENTITY_MISMATCH/,
   );
 });
