@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     strategy:
@@ -20,10 +24,16 @@ jobs:
             node: "22.x"
           - os: macos-14
             node: "22.x"
+          - os: ubuntu-latest
+            node: "24.x"
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ matrix.node }}
           cache: npm
@@ -33,15 +43,19 @@ jobs:
       - run: npm run format:check
       - run: npm test
       - run: npm run test:coverage
-      - run: npm run public-audit
+      - run: npm run public-audit:release
       - run: node --experimental-sqlite bin/build-p10-release.mjs --output output/.ci-release
       - run: node --experimental-sqlite bin/build-p10-release.mjs --verify --output output/.ci-release
 
   browser:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22.x"
           cache: npm

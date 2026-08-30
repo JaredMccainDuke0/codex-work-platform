@@ -105,6 +105,22 @@ test("state store persists collections transactionally and rejects a second writ
   second.close();
 });
 
+test("state store bounds stale writer-lock evidence", async (t) => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "cwp-state-stale-lock-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const databasePath = path.join(dir, "control.sqlite");
+  const lockPath = `${databasePath}.lock`;
+  for (let index = 0; index < 6; index += 1) {
+    await writeFile(lockPath, JSON.stringify({ pid: 2_147_483_647 }));
+    const store = new StateStore({ databasePath }).open();
+    store.close();
+  }
+  const stale = fs
+    .readdirSync(dir)
+    .filter((name) => name.startsWith("control.sqlite.lock.stale-"));
+  assert.equal(stale.length, 3);
+});
+
 test("state store handles a bounded event stress set without a snapshot file rewrite", async (t) => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "cwp-state-stress-"));
   t.after(() => rm(dir, { recursive: true, force: true }));

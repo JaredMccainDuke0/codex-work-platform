@@ -2,10 +2,19 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import http from "node:http";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
+import { PRODUCT_VERSION } from "../version.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -40,12 +49,22 @@ test(
     const webPort = await freePort();
     const requestToken = crypto.randomBytes(16).toString("hex");
     const configPath = path.join(dir, "config.json");
+    const runtimeDirectory = path.join(dataRoot, "runtime");
+    await mkdir(runtimeDirectory, { recursive: true });
+    for (let index = 0; index < 6; index += 1)
+      await writeFile(
+        path.join(
+          runtimeDirectory,
+          `stale-instance-2026-01-0${index + 1}T00-00-00-000Z-test.json`,
+        ),
+        "{}",
+      );
     await writeFile(
       configPath,
       JSON.stringify({
         schemaVersion: 1,
         product: "codex-work-platform",
-        version: "1.0.0",
+        version: PRODUCT_VERSION,
         instanceId: crypto.randomUUID(),
         installRoot: root,
         dataRoot,
@@ -113,6 +132,12 @@ test(
       }
     });
     const initialWebPid = initial.webPid;
+    assert.equal(
+      (await readdir(runtimeDirectory)).filter((name) =>
+        name.startsWith("stale-instance-"),
+      ).length,
+      3,
+    );
     process.kill(initialWebPid, "SIGTERM");
     const recovered = await waitFor(async () => {
       try {
@@ -150,5 +175,6 @@ test(
     assert.equal(stop.status, 202);
     await waitFor(() => child.exitCode !== null);
     assert.equal(child.exitCode, 0, output);
+    await assert.rejects(access(runtimePath));
   },
 );

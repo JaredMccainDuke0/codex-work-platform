@@ -6,6 +6,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { PRODUCT_VERSION } from "./version.mjs";
 import {
   MockCodexAdapter,
   LocalCodexCliAdapter,
@@ -33,6 +34,24 @@ import {
 } from "./workflow-core.mjs";
 
 const args = new Map();
+const allowedArguments = new Set([
+  "--allow-web-search",
+  "--auto-approve-high-risk",
+  "--codex-command",
+  "--codex-home",
+  "--compat-base",
+  "--control-db",
+  "--db",
+  "--default-no-progress-timeout-ms",
+  "--default-run-timeout-ms",
+  "--instance-id",
+  "--port",
+  "--request-token",
+  "--shutdown-token",
+  "--tick-ms",
+  "--watchdog-ms",
+  "--workspace-root",
+]);
 for (let i = 2; i < process.argv.length; i += 2) {
   if (
     !process.argv[i]?.startsWith("--") ||
@@ -40,17 +59,22 @@ for (let i = 2; i < process.argv.length; i += 2) {
     process.argv[i + 1]?.startsWith("--")
   )
     throw Error(`INVALID_ARGUMENTS_AT:${i - 2}`);
+  if (!allowedArguments.has(process.argv[i]))
+    throw Error(`ARGUMENT_UNKNOWN:${process.argv[i]}`);
+  if (args.has(process.argv[i]))
+    throw Error(`ARGUMENT_DUPLICATE:${process.argv[i]}`);
   args.set(process.argv[i], process.argv[i + 1]);
 }
 const port = Number(args.get("--port") ?? 19738);
 const host = "127.0.0.1";
-const compatBase =
-  args.get("--compat-base") ??
-  args.get("--legacy-base") ??
-  "http://127.0.0.1:19737";
-const tickMs = Number(args.get("--tick-ms") ?? 800);
+const compatBase = args.get("--compat-base") ?? "http://127.0.0.1:19737";
+const tickMs = positiveInteger(
+  args.get("--tick-ms"),
+  800,
+  "TICK_INTERVAL_INVALID",
+  25,
+);
 const db = path.resolve(args.get("--db") ?? "./platform.sqlite");
-const stateFile = `${db}.p10.json`;
 const workspaceRoot = path.resolve(
   args.get("--workspace-root") ?? process.cwd(),
 );
@@ -63,12 +87,12 @@ const codexHome = path.resolve(
 const codexProviderConfig = loadOfficialChatGptConfig(
   path.join(codexHome, "config.toml"),
 );
-const allowWebSearch = args.get("--allow-web-search") !== "false";
-const autoApproveHighRisk = args.get("--auto-approve-high-risk") === "true";
+const allowWebSearch = booleanArgument("--allow-web-search", true);
+const autoApproveHighRisk = booleanArgument("--auto-approve-high-risk", false);
 const instanceId = args.get("--instance-id") ?? null;
 const requestToken = String(args.get("--request-token") ?? "");
 const shutdownToken = String(args.get("--shutdown-token") ?? requestToken);
-const workbenchVersion = "1.0.0";
+const workbenchVersion = PRODUCT_VERSION;
 const webRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "web");
 const legacyStatePath = `${db}.p10.json`;
 const controlDatabasePath = path.resolve(
@@ -115,6 +139,13 @@ function positiveInteger(value, fallback, code, minimum = 100) {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < minimum) throw Error(code);
   return parsed;
+}
+function booleanArgument(name, fallback) {
+  const value = args.get(name);
+  if (value === undefined) return fallback;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  throw Error(`ARGUMENT_BOOLEAN_INVALID:${name}`);
 }
 function optionalPositiveNumber(value, code, { integer = false } = {}) {
   if (value === undefined || value === null || value === "") return null;
@@ -2245,9 +2276,6 @@ const server = http.createServer(async (req, res) => {
         p10: true,
         version: workbenchVersion,
         host,
-        compatBase,
-        workspaceRoot,
-        allowedRoots: allowedRoots(),
         instanceId,
       });
     if (u.pathname === "/api/p10/client-config" && req.method === "GET")
@@ -2290,7 +2318,6 @@ const server = http.createServer(async (req, res) => {
         ok: ready,
         ready,
         version: workbenchVersion,
-        controlDatabase: controlDatabasePath,
         controlDatabaseStatus: controlDatabase,
         compat,
       });
@@ -2820,7 +2847,7 @@ process.once("uncaughtException", (error) => {
   );
   void shutdown("uncaught-exception").then(() => process.exit(1));
 });
-process.on("unhandledRejection", (error) => {
+process.once("unhandledRejection", (error) => {
   console.error(
     JSON.stringify({
       ok: false,
@@ -2828,14 +2855,13 @@ process.on("unhandledRejection", (error) => {
       error: redactSecrets(error?.stack || error?.message || String(error)),
     }),
   );
+  void shutdown("unhandled-rejection").then(() => process.exit(1));
 });
 server.listen(port, host, () =>
   console.log(
     JSON.stringify({
       ok: true,
       url: `http://${host}:${port}/`,
-      stateFile,
-      controlDatabasePath,
       version: workbenchVersion,
     }),
   ),

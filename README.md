@@ -73,8 +73,8 @@ option is supplied.
 To create a portable directory locally:
 
 ```bash
-npm run build -- -- --output ./output/codex-work-platform-1.0.0-portable
-npm run verify-release -- ./output/codex-work-platform-1.0.0-portable
+npm run build -- -- --output ./output/codex-work-platform-1.0.1-portable
+npm run verify-release -- ./output/codex-work-platform-1.0.1-portable
 ```
 
 The extra `--` keeps option forwarding reliable across npm versions. You can
@@ -137,18 +137,31 @@ as legacy evidence; migration never deletes user data.
 The interface is English-first and includes a Chinese locale switch. It is
 responsive at desktop and narrow mobile widths.
 
+## Verification status
+
+| Environment | Automated verification                                      | Physical-device acceptance                 |
+| ----------- | ----------------------------------------------------------- | ------------------------------------------ |
+| Windows x64 | CI, installer lifecycle, supervisor recovery, browser smoke | Fresh-device and reboot acceptance pending |
+| macOS arm64 | CI, installer lifecycle, portable verification              | Physical arm64 device pending              |
+| Linux x64   | CI and development workflow                                 | No desktop installer claim                 |
+
+CI evidence is intentionally reported separately from real-device acceptance.
+
 ## Commands
 
 ```text
 npm run dev             Start a local development supervisor
+npm run dev:no-open     Start without opening a browser
 npm start               Start the local development supervisor
-npm run check           Check all JavaScript syntax
+npm run check           Check JavaScript syntax and version metadata
+npm run check:version   Verify product and compatibility-runtime versions
 npm test                Run unit and integration tests
 npm run test:coverage   Run tests with the Node coverage report
 npm run test:coverage:all  Include every instrumented integration module
 npm run test:e2e        Run the browser smoke checks
 npm run public-audit    Check the public repository boundary
 npm run build           Build a verified portable package
+npm run build:clean     Build without retaining a previous portable directory
 npm run verify-release  Verify a portable package manifest
 
 # Installed lifecycle (run from the installed release directory)
@@ -178,26 +191,20 @@ requiring credentials or a browser cache.
 ## Compatibility runtime
 
 `release/compat-runtime` is a vendored runtime used for formal project objects
-and MCP compatibility. Its provenance, exact dependency versions, checksums,
-and third-party notices are maintained under `vendor/compat-runtime/`. The
-current artifact is documented as a local bundle without an upstream commit;
-future vendor updates must add a locked source checkout before claiming full
-reproducibility.
+and MCP compatibility. Its available provenance, dependency identities,
+licenses, checksums, and third-party notices are maintained under
+`vendor/compat-runtime/`. The current artifact is documented as a local bundle
+without an upstream commit or encoded dependency versions; future vendor
+updates must add a locked source checkout before claiming full reproducibility.
 
-The current vendor record is a byte-verified local bundle whose original
-upstream checkout and exact embedded dependency versions were not present in
-the handoff. The repository records that limitation explicitly; a future
-release must replace it with a locked, reproducible source build.
+The vendored compatibility runtime currently remains at component version
+1.0.0. Its version is intentionally independent from the workbench release.
 
 ## Development and security
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and
 [CHANGELOG.md](CHANGELOG.md). Report vulnerabilities privately rather than in
 a public issue.
-
-Automated CI covers Linux, Windows, and macOS arm64 runners. A physical new
-device installation is an additional acceptance step and is not implied by a
-green CI run.
 
 ## License
 

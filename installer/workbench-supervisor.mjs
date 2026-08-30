@@ -259,6 +259,17 @@ function openBrowser(url) {
   child.unref();
 }
 
+function pruneStaleRuntimeFiles(runtimeFile, keep = 3) {
+  const directory = path.dirname(runtimeFile);
+  if (!fs.existsSync(directory)) return;
+  const files = fs
+    .readdirSync(directory)
+    .filter((name) => /^stale-instance-.*\.json$/.test(name))
+    .sort((left, right) => right.localeCompare(left));
+  for (const name of files.slice(keep))
+    fs.rmSync(path.join(directory, name), { force: true });
+}
+
 export async function runSupervisor(input = {}) {
   const configPath = requireAbsolute(input.configPath, "configPath");
   const config = validateConfig(readJson(configPath), configPath);
@@ -269,6 +280,7 @@ export async function runSupervisor(input = {}) {
   fs.mkdirSync(config.workspaceRoot, { recursive: true });
   fs.mkdirSync(path.join(config.dataRoot, "logs"), { recursive: true });
   fs.mkdirSync(path.dirname(config.runtimeFile), { recursive: true });
+  pruneStaleRuntimeFiles(config.runtimeFile);
 
   if (fs.existsSync(config.runtimeFile)) {
     const prior = readJson(config.runtimeFile);
@@ -284,6 +296,7 @@ export async function runSupervisor(input = {}) {
         `${uniqueName("stale-instance")}.json`,
       ),
     );
+    pruneStaleRuntimeFiles(config.runtimeFile);
   }
 
   const selectedPorts = await selectPorts(config);
@@ -348,6 +361,7 @@ export async function runSupervisor(input = {}) {
         fs.unlinkSync(config.runtimeFile);
     } catch {}
   };
+  process.once("exit", cleanupRuntimeFile);
 
   const shutdown = async (reason, exitCode = 0) => {
     if (shuttingDown) return;
@@ -581,6 +595,7 @@ export async function runSupervisor(input = {}) {
   } finally {
     process.off("SIGINT", onSignal);
     process.off("SIGTERM", onSignal);
+    process.off("exit", cleanupRuntimeFile);
   }
 }
 

@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
 import { chromium } from "@playwright/test";
+import { PRODUCT_VERSION } from "../version.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -24,7 +25,7 @@ const compat = http.createServer((req, res) => {
         workItemCount: 0,
         candidateCount: 0,
         eventCount: 0,
-        product: { version: "1.0.0", manifestShortHash: "e2e" },
+        product: { version: PRODUCT_VERSION, manifestShortHash: "e2e" },
         generatedAt: new Date().toISOString(),
       }),
     );
@@ -71,6 +72,7 @@ try {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({
     viewport: { width: 1440, height: 900 },
+    colorScheme: "dark",
   });
   const errors = [];
   page.on("console", (message) => {
@@ -78,15 +80,70 @@ try {
   });
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${webPort}/`, { waitUntil: "networkidle" });
+  if (
+    (await page
+      .getByRole("button", { name: "Overview" })
+      .getAttribute("aria-current")) !== "page"
+  )
+    throw Error("E2E_OVERVIEW_ARIA_CURRENT_MISSING");
   await page.getByRole("button", { name: "切换到中文" }).click();
   await page.getByRole("heading", { name: "工作台总览" }).waitFor();
-  await page.evaluate(() => localStorage.setItem("cwp-locale", "en"));
-  await page.reload({ waitUntil: "networkidle" });
+  await page.getByRole("link", { name: "跳到主要内容" }).waitFor();
+  if ((await page.locator("html").getAttribute("lang")) !== "zh-CN")
+    throw Error("E2E_CHINESE_LANG_MISSING");
+  await page.getByRole("button", { name: "Switch to English" }).click();
+  await page.getByRole("heading", { name: "Workbench overview" }).waitFor();
   await page.getByRole("button", { name: "Workflows 0" }).click();
   await page.getByText("Advanced execution options").first().waitFor();
+  await page.locator("#workflow-title").fill("E2E workflow");
+  await page.locator("#workflow-description").fill("Browser regression flow");
+  await page
+    .getByRole("button", { name: "Create workflow", exact: true })
+    .click();
+  await page.getByText("E2E workflow", { exact: true }).last().waitFor();
+  const nodes = [
+    ["Inspect", "Inspect the temporary project without changing files."],
+    ["Report", "Return a concise verification report."],
+  ];
+  for (const [index, [title, prompt]] of nodes.entries()) {
+    await page.locator("#node-title").fill(title);
+    await page.locator("#node-prompt").fill(prompt);
+    await page.getByRole("button", { name: "Add node", exact: true }).click();
+    await page.locator(".order-item").nth(index).waitFor();
+  }
+  const orderSlotCount = await page.locator(".order-item").count();
+  if (orderSlotCount !== 2)
+    throw Error(`E2E_ORDER_SLOT_COUNT:${orderSlotCount}`);
+  await page.getByRole("button", { name: "Move down 1" }).click();
+  await page.getByText("Order changed; not saved", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Save order", exact: true }).click();
+  await page.getByText("Order saved", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Approvals 0" }).click();
+  await page.getByRole("heading", { name: "Approval center" }).waitFor();
   await page.getByRole("button", { name: "Projects" }).click();
+  await page.getByRole("heading", { name: "Projects and briefs" }).waitFor();
+  const newProject = page.getByRole("button", { name: "New project" });
+  if ((await newProject.getAttribute("aria-expanded")) !== "false")
+    throw Error("E2E_PROJECT_FORM_INITIAL_STATE");
+  await newProject.click();
+  await page.locator("#project-form").waitFor();
+  if ((await newProject.getAttribute("aria-expanded")) !== "true")
+    throw Error("E2E_PROJECT_FORM_EXPANDED_STATE");
+  await newProject.click();
+  if ((await newProject.getAttribute("aria-expanded")) !== "false")
+    throw Error("E2E_PROJECT_FORM_COLLAPSED_STATE");
+  await page.getByRole("button", { name: "Activity" }).click();
+  await page.getByRole("heading", { name: "Activity and audit" }).waitFor();
+  if (
+    (await page
+      .getByRole("button", { name: "Activity" })
+      .getAttribute("aria-current")) !== "page"
+  )
+    throw Error("E2E_ACTIVITY_ARIA_CURRENT_MISSING");
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(`http://127.0.0.1:${webPort}/`, { waitUntil: "networkidle" });
+  await page.goto(`http://127.0.0.1:${webPort}/#overview`, {
+    waitUntil: "networkidle",
+  });
   const metrics = await page.evaluate(() => ({
     title: document.title,
     scrollWidth: document.documentElement.scrollWidth,

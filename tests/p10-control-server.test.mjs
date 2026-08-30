@@ -1179,6 +1179,22 @@ test("rendered workbench serves a standalone secure UI shell", async (t) => {
   assert.equal((await fetch(`${url}/assets/..%2Fpackage.json`)).status, 404);
 });
 
+test("control server rejects unknown and duplicate startup arguments", async () => {
+  for (const args of [
+    ["--unknown", "value"],
+    ["--port", "19738", "--port", "19739"],
+    ["--allow-web-search", "sometimes"],
+  ]) {
+    const child = spawn(
+      process.execPath,
+      [path.join(root, "p10-control-server.mjs"), ...args],
+      { stdio: "ignore" },
+    );
+    const code = await new Promise((resolve) => child.once("close", resolve));
+    assert.notEqual(code, 0, args.join(" "));
+  }
+});
+
 test("readiness separates a live control process from an unavailable compat service", async (t) => {
   const dir = await mkdtemp(path.join(tmpdir(), "cwp-p10-ready-"));
   const port = await getFreePort();
@@ -1201,8 +1217,16 @@ test("readiness separates a live control process from an unavailable compat serv
     await rm(dir, { recursive: true, force: true });
   });
   await waitForHealth(url);
-  assert.equal((await fetch(`${url}/healthz`)).status, 200);
-  assert.equal((await fetch(`${url}/readyz`)).status, 503);
+  const healthResponse = await fetch(`${url}/healthz`);
+  const health = await healthResponse.json();
+  assert.equal(healthResponse.status, 200);
+  assert.equal(health.workspaceRoot, undefined);
+  assert.equal(health.allowedRoots, undefined);
+  assert.equal(health.compatBase, undefined);
+  const readyResponse = await fetch(`${url}/readyz`);
+  const ready = await readyResponse.json();
+  assert.equal(readyResponse.status, 503);
+  assert.equal(ready.controlDatabase, undefined);
 });
 
 test("mutating requests require the installation request token when a browser origin is present", async (t) => {

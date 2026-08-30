@@ -30,6 +30,7 @@ const personalEmailPattern =
   /\b[A-Z0-9._%+-]+@(?!example\.(?:com|org|net)\b)(?!localhost\b)[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
 const allowedBinaryExtensions = new Set([".wasm"]);
 const findings = [];
+let historyCommitsScanned = 0;
 
 try {
   const tracked = execFileSync("git", ["ls-files"], {
@@ -123,6 +124,69 @@ function walk(directory) {
 }
 
 walk(root);
+
+try {
+  const history = execFileSync(
+    "git",
+    ["log", "--all", "-p", "--no-color", "--format=COMMIT:%H"],
+    { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+  );
+  const commits = new Set();
+  const seen = new Set();
+  let commit = "";
+  let file = "";
+  for (const line of history.split(/\r?\n/)) {
+    const commitMatch = line.match(/^COMMIT:([a-f0-9]{40})$/);
+    if (commitMatch) {
+      commit = commitMatch[1];
+      commits.add(commit);
+      continue;
+    }
+    const fileMatch = line.match(/^diff --git a\/(.+) b\/(.+)$/);
+    if (fileMatch) {
+      file = fileMatch[2];
+      continue;
+    }
+    if (
+      !commit ||
+      !file ||
+      file === "scripts/public-audit.mjs" ||
+      !line.startsWith("+") ||
+      line.startsWith("+++")
+    )
+      continue;
+    const added = line.slice(1);
+    const record = (type, pattern) => {
+      const key = `${commit}:${file}:${type}:${pattern}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      findings.push({
+        type,
+        commit: commit.slice(0, 12),
+        path: file,
+        pattern,
+      });
+    };
+    for (const pattern of secretPatterns) {
+      pattern.lastIndex = 0;
+      if (pattern.test(added)) record("history-secret-pattern", pattern.source);
+    }
+    for (const pattern of personalPathPatterns) {
+      pattern.lastIndex = 0;
+      if (pattern.test(added)) record("history-personal-path", pattern.source);
+    }
+    personalEmailPattern.lastIndex = 0;
+    if (personalEmailPattern.test(added))
+      record("history-personal-email", personalEmailPattern.source);
+  }
+  historyCommitsScanned = commits.size;
+} catch (error) {
+  findings.push({
+    type: "history-audit-failed",
+    code: String(error?.message || error).slice(0, 200),
+  });
+}
+
 const vendorSource = path.join(
   root,
   "vendor",
@@ -175,6 +239,11 @@ if (
     path: "vendor/compat-runtime/SOURCES.json",
     status: vendor.status,
   });
-const result = { ok: findings.length === 0, releaseMode, findings };
+const result = {
+  ok: findings.length === 0,
+  releaseMode,
+  historyCommitsScanned,
+  findings,
+};
 process.stdout.write(JSON.stringify(result, null, 2) + "\n");
 if (!result.ok) process.exit(1);

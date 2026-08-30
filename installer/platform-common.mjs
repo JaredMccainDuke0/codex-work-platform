@@ -2,10 +2,11 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { PRODUCT_ID, PRODUCT_NAME, PRODUCT_VERSION } from "../version.mjs";
 
-export const PRODUCT = "codex-work-platform";
-export const PRODUCT_LABEL = "Codex Work Platform";
-export const P10_VERSION = "1.0.0";
+export const PRODUCT = PRODUCT_ID;
+export const PRODUCT_LABEL = PRODUCT_NAME;
+export const P10_VERSION = PRODUCT_VERSION;
 export const RELEASE_MANIFEST = "p10-release.json";
 export const INSTALLATION_RECORD = "installation.json";
 export const PLATFORM_CONFIG = "platform-config.json";

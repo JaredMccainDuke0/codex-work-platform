@@ -1,8 +1,20 @@
 {
   "name": "codex-work-platform",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A local-first Codex workflow workbench with approvals, durable state, and recoverable execution.",
   "license": "MIT",
+  "author": {
+    "name": "JaredMccainDuke0",
+    "url": "https://github.com/JaredMccainDuke0"
+  },
+  "homepage": "https://github.com/JaredMccainDuke0/codex-work-platform#readme",
+  "keywords": [
+    "codex",
+    "local-first",
+    "workflow",
+    "sqlite",
+    "desktop"
+  ],
   "files": [
     "bin/",
     "docs/",
@@ -26,8 +38,10 @@
   "type": "module",
   "scripts": {
     "dev": "node --experimental-sqlite scripts/dev.mjs",
+    "dev:no-open": "node --experimental-sqlite scripts/dev.mjs --no-open",
     "start": "node --experimental-sqlite scripts/dev.mjs",
-    "check": "node scripts/check-syntax.mjs",
+    "check": "node scripts/check-syntax.mjs && node scripts/check-version.mjs",
+    "check:version": "node scripts/check-version.mjs",
     "format:check": "node scripts/format-check.mjs",
     "test": "node --experimental-sqlite --test --test-concurrency=1 tests/*.test.mjs",
     "test:coverage": "node --experimental-sqlite --experimental-test-coverage --test --test-concurrency=1 --test-coverage-include=p10-state.mjs --test-coverage-include=validation.mjs --test-coverage-include=workflow-core.mjs --test-coverage-lines=90 --test-coverage-branches=80 tests/*.test.mjs",
@@ -37,8 +51,9 @@
     "public-audit": "node scripts/public-audit.mjs",
     "public-audit:release": "node scripts/public-audit.mjs --release",
     "build": "node --experimental-sqlite bin/build-p10-release.mjs",
+    "build:clean": "node --experimental-sqlite bin/build-p10-release.mjs --previous-limit 0",
     "verify-release": "node --experimental-sqlite scripts/verify-release.mjs",
-    "release:check": "npm run check && npm run format:check && npm audit --audit-level=high && npm test && npm run test:coverage && npm run test:e2e && npm run public-audit:release && npm run build && npm run verify-release"
+    "release:check": "npm run check && npm run format:check && npm audit --audit-level=high && npm test && npm run test:coverage && npm run test:e2e && npm run public-audit:release && npm run build:clean && npm run verify-release"
   },
   "engines": {
     "node": ">=22.5.0"

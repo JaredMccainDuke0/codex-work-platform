@@ -5,7 +5,14 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const ignored = new Set(["node_modules", ".git", "output", "coverage"]);
+const ignored = new Set([
+  "node_modules",
+  ".git",
+  ".local",
+  ".playwright-cli",
+  "output",
+  "coverage",
+]);
 const files = [];
 
 function walk(directory) {

@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
+import { PRODUCT_VERSION } from "./version.mjs";
 
 function jsonLine(value) {
   return `${JSON.stringify(value)}\n`;
@@ -106,7 +107,7 @@ export class CodexAppServerClient {
         clientInfo: {
           name: "codex_work_platform",
           title: "Codex 工作台",
-          version: "1.0.0",
+          version: PRODUCT_VERSION,
         },
         capabilities: { experimentalApi: this.experimentalApi },
       });

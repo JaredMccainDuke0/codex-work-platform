@@ -28,8 +28,8 @@ npm run dev
 构建并校验便携包：
 
 ```bash
-npm run build -- -- --output ./output/codex-work-platform-1.0.0-portable
-npm run verify-release -- ./output/codex-work-platform-1.0.0-portable
+npm run build -- -- --output ./output/codex-work-platform-1.0.1-portable
+npm run verify-release -- ./output/codex-work-platform-1.0.1-portable
 ```
 
 多出的一个 `--` 用于兼容不同 npm 版本的参数转发；也可以直接运行
@@ -56,6 +56,11 @@ npm run verify-release -- ./output/codex-work-platform-1.0.0-portable
 对应对话，无需重启。
 
 界面采用明亮浅色主题，即使操作系统设置为深色模式也不会切换成暗色界面。
+
+自动化验收与实体机验收会明确区分：Windows、macOS arm64 和 Linux 已进入
+CI；全新 Windows 实体机、Windows 重启自动启动和 macOS arm64 实体机仍不
+宣称已完成。内置 compat-runtime 当前是独立的 1.0.0 组件版本，不要求与
+工作台版本号同步。
 
 更多说明请阅读英文版 [README.md](README.md)、[贡献指南](CONTRIBUTING.md)
 和[安全策略](SECURITY.md)。

@@ -7,6 +7,11 @@
 *.md text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
+.editorconfig text eol=lf
+.env.example text eol=lf
+.gitattributes text eol=lf
+.gitignore text eol=lf
+.npmignore text eol=lf
 LICENSE text eol=lf
 NOTICE text eol=lf
 *.ps1 text eol=crlf

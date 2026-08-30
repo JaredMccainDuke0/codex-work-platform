@@ -4,7 +4,7 @@
 2. Do not commit databases, runtime state, credentials, private project files,
    screenshots containing local paths, or complete chat transcripts.
 3. Run `npm ci`, `npm run check`, `npm run format:check`, `npm test`,
-   `npm run test:coverage`, and `npm run public-audit`.
+   `npm run test:coverage`, and `npm run public-audit:release`.
 4. For UI changes, run the Playwright smoke flow at desktop and 390px widths.
 5. Explain migration, security, compatibility, and visual-QA limits in the
    pull request.

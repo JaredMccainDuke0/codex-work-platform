@@ -1,4 +1,4 @@
-# Contributor Covenant Code of Conduct
+# Code of Conduct
 
 We are committed to a welcoming, respectful, and harassment-free community.
 Contributors must act professionally, assume good faith, and respect privacy.

@@ -48,3 +48,6 @@ Desktop.ini
 *.previous-*
 *.failed/
 codex-work-platform-backups/
+*.tgz
+*.tar.gz
+*.sha256

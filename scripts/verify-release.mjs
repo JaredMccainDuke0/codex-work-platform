@@ -3,10 +3,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { verifyPortableRelease } from "../installer/platform-manager.mjs";
 import { redactSecrets } from "../codex-adapter.mjs";
+import { PRODUCT_VERSION } from "../version.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 try {
-  let output = path.join(root, "output", "codex-work-platform-1.0.0-portable");
+  let output = path.join(
+    root,
+    "output",
+    `codex-work-platform-${PRODUCT_VERSION}-portable`,
+  );
   for (let index = 2; index < process.argv.length; index += 1) {
     if (process.argv[index] === "--output") {
       if (!process.argv[index + 1]) throw Error("VERIFY_OUTPUT_REQUIRED");

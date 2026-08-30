@@ -4,52 +4,24 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const files = [
-  ".env.example",
-  ".gitattributes",
-  "CHANGELOG.md",
-  "CODE_OF_CONDUCT.md",
-  "CONTRIBUTING.md",
-  "LICENSE",
-  "NOTICE",
-  "THIRD_PARTY_NOTICES.md",
-  "README.md",
-  "README.zh-CN.md",
-  "SECURITY.md",
-  "bin/build-p10-release.mjs",
-  "codex-adapter.mjs",
-  "codex-app-server-adapter.mjs",
-  "codex-app-server.mjs",
-  "docs/api.md",
-  "docs/architecture.md",
-  "docs/migrations.md",
-  "docs/release.md",
-  "installer/install-macos.command",
-  "installer/install-windows.ps1",
-  "installer/platform-common.mjs",
-  "installer/platform-manager.mjs",
-  "installer/workbench-supervisor.mjs",
-  "p10-control-server.mjs",
-  "p10-state.mjs",
-  "package-lock.json",
-  "package.json",
-  ".prettierrc.json",
-  "scripts/check-syntax.mjs",
-  "scripts/dev.mjs",
-  "scripts/e2e-smoke.mjs",
-  "scripts/format-check.mjs",
-  "scripts/public-audit.mjs",
-  "scripts/verify-release.mjs",
-  "state-store.mjs",
-  "validation.mjs",
-  "web/app.js",
-  "web/index.html",
-  "web/styles.css",
-  "workflow-core.mjs",
-  ".github/dependabot.yml",
-  ".github/workflows/ci.yml",
-  ".github/workflows/release.yml",
-];
+const files = execFileSync(
+  "git",
+  ["ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+  {
+    cwd: root,
+    encoding: "utf8",
+  },
+)
+  .split("\0")
+  .filter(Boolean)
+  .filter(
+    (file) =>
+      !file.startsWith("release/compat-runtime/") &&
+      ![".wasm", ".png", ".jpg", ".jpeg", ".gif", ".ico"].includes(
+        path.extname(file).toLowerCase(),
+      ),
+  )
+  .sort();
 const prettierCli = path.join(
   root,
   "node_modules",

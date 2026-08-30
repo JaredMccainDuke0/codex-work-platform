@@ -5,7 +5,12 @@ import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { runSupervisor } from "../installer/workbench-supervisor.mjs";
 import { findAvailablePortPair } from "../installer/platform-manager.mjs";
-import { processAlive, readJson } from "../installer/platform-common.mjs";
+import {
+  atomicJson,
+  processAlive,
+  readJson,
+} from "../installer/platform-common.mjs";
+import { PRODUCT_ID, PRODUCT_VERSION } from "../version.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dataRoot = path.join(root, ".local", "data");
@@ -16,18 +21,30 @@ const runtimePath = path.join(dataRoot, "runtime", "instance.json");
 const instanceId =
   "dev-" + crypto.createHash("sha256").update(root).digest("hex").slice(0, 16);
 if (fs.existsSync(runtimePath)) {
+  let runtime = null;
   try {
-    const runtime = readJson(runtimePath);
-    if (
-      runtime.instanceId === instanceId &&
-      processAlive(Number(runtime.supervisorPid))
-    ) {
+    runtime = readJson(runtimePath);
+  } catch {}
+  if (runtime && processAlive(Number(runtime.supervisorPid))) {
+    if (runtime.instanceId === instanceId) {
       process.stdout.write(
         `${JSON.stringify({ ok: true, alreadyRunning: true, webUrl: runtime.webUrl, compatUrl: runtime.compatUrl, instanceId: runtime.instanceId })}\n`,
       );
       process.exit(0);
     }
-  } catch {}
+    throw Error("DEV_RUNTIME_OWNED_BY_ANOTHER_INSTANCE");
+  }
+  try {
+    fs.unlinkSync(runtimePath);
+  } catch (error) {
+    throw Error(`DEV_STALE_RUNTIME_CLEANUP_FAILED:${error.message}`);
+  }
+}
+const runtimeDirectory = path.dirname(runtimePath);
+if (fs.existsSync(runtimeDirectory)) {
+  for (const entry of fs.readdirSync(runtimeDirectory))
+    if (/^stale-instance-.*\.json$/.test(entry))
+      fs.rmSync(path.join(runtimeDirectory, entry), { force: true });
 }
 const ports = await findAvailablePortPair({
   compatPort: Number(process.env.CWP_COMPAT_PORT || 19737),
@@ -35,8 +52,8 @@ const ports = await findAvailablePortPair({
 });
 const config = {
   schemaVersion: 1,
-  product: "codex-work-platform",
-  version: "1.0.0",
+  product: PRODUCT_ID,
+  version: PRODUCT_VERSION,
   development: true,
   instanceId,
   installRoot: root,
@@ -63,9 +80,6 @@ const config = {
   updatedAt: new Date().toISOString(),
 };
 fs.mkdirSync(path.dirname(configPath), { recursive: true });
-fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, {
-  encoding: "utf8",
-  mode: 0o600,
-});
+atomicJson(configPath, config, { mode: 0o600 });
 const open = !process.argv.includes("--no-open");
-await runSupervisor({ configPath, openBrowser: open });
+process.exitCode = await runSupervisor({ configPath, openBrowser: open });

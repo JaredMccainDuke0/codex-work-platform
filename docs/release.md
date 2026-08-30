@@ -10,14 +10,16 @@ npm test
 npm run test:coverage
 npm run test:e2e
 npm run public-audit:release
-npm run build -- -- --version 1.0.0 --output ./output/codex-work-platform-1.0.0-portable
-npm run verify-release -- ./output/codex-work-platform-1.0.0-portable
+node scripts/check-version.mjs --tag v1.0.1
+npm run build:clean
+npm run verify-release
 ```
 
 The build writes `p10-release.json`, whose manifest SHA-256 and tree SHA-256
 are the release identity. Text sources are canonicalized to LF so a Windows
-checkout and a Unix checkout produce the same manifest. Existing output directories are moved to a uniquely
-named `.previous-*` sibling; the builder does not prune those archives.
+checkout and a Unix checkout produce the same manifest. A normal manual build
+keeps at most one recoverable `.previous-*` sibling; `build:clean` retains none,
+so repeated release checks do not accumulate obsolete packages.
 
 GitHub Actions repeats the checks on Linux, Windows, and macOS arm64 runners
 and publishes one tarball plus a `.sha256` sidecar per runner. A passing CI

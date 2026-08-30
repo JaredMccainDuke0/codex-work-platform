@@ -166,9 +166,9 @@ test("Windows and macOS default layouts keep app, data and workspace separate", 
     "/Users/tester/Library/Application Support/CodexWorkPlatform",
   );
   assert.equal(mac.workspaceRoot, "/Users/tester/Documents/CodexWorkspace");
-  assert.equal(compareP10Versions("0.10.0-dev.3", "0.10.0-dev.2"), 1);
-  assert.equal(compareP10Versions("0.10.0", "0.10.0-rc.1"), 1);
-  assert.equal(compareP10Versions("0.10.0-dev.1", "0.10.0-dev.1"), 0);
+  assert.equal(compareP10Versions("1.2.0-dev.3", "1.2.0-dev.2"), 1);
+  assert.equal(compareP10Versions("1.2.0", "1.2.0-rc.1"), 1);
+  assert.equal(compareP10Versions("1.2.0-dev.1", "1.2.0-dev.1"), 0);
 });
 
 test("port selection moves to the next free pair when preferred ports are occupied", async (t) => {

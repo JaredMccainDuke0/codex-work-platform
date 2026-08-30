@@ -60,6 +60,19 @@ function writeTextAtomically(target, text) {
   }
 }
 
+function pruneStaleLockFiles(lockPath, keep = 3) {
+  const directory = path.dirname(lockPath);
+  const prefix = `${path.basename(lockPath)}.stale-`;
+  if (!fs.existsSync(directory)) return;
+  const files = fs
+    .readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.startsWith(prefix))
+    .map((entry) => entry.name)
+    .sort((left, right) => right.localeCompare(left));
+  for (const name of files.slice(keep))
+    fs.rmSync(path.join(directory, name), { force: true });
+}
+
 let DatabaseSync;
 try {
   ({ DatabaseSync } = await import("node:sqlite"));
@@ -593,9 +606,10 @@ export class StateStore {
         if (probeError?.code === "EPERM") alive = true;
       }
       if (alive) throw Error(`CONTROL_DB_IN_USE:${prior.pid}`);
-      const stale = `${this.lockPath}.stale-${Date.now()}`;
+      const stale = `${this.lockPath}.stale-${Date.now()}-${crypto.randomBytes(3).toString("hex")}`;
       try {
         renameWithRetry(this.lockPath, stale);
+        pruneStaleLockFiles(this.lockPath);
       } catch (renameError) {
         throw Error(`CONTROL_DB_LOCK_STALE:${renameError.message}`);
       }

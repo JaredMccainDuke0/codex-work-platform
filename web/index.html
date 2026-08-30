@@ -8,7 +8,9 @@
     <link rel="stylesheet" href="/assets/styles.css" />
   </head>
   <body>
-    <a class="skip-link" href="#main">Skip to main content</a>
+    <a class="skip-link" href="#main" data-i18n="skipMain"
+      >Skip to main content</a
+    >
     <header class="site-header">
       <div>
         <p class="eyebrow" data-i18n="localWorkbench">LOCAL WORKBENCH</p>
@@ -24,7 +26,12 @@
 
     <main id="main" class="app-shell">
       <nav class="main-nav" aria-label="Main navigation">
-        <button class="nav-button active" data-view="overview" type="button">
+        <button
+          class="nav-button active"
+          data-view="overview"
+          type="button"
+          aria-current="page"
+        >
           <span aria-hidden="true">⌂</span
           ><span data-i18n="overview">Overview</span>
         </button>
@@ -598,6 +605,8 @@ Inspect the current project and return a structured report; do not modify files.
               id="new-project-toggle"
               class="button primary"
               type="button"
+              aria-controls="project-form"
+              aria-expanded="false"
               data-i18n="newProject"
             >
               New project
@@ -717,11 +726,7 @@ Select a conversation to view its history.</pre>
     </main>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
     <datalist id="model-options">
-      <option value="gpt-5.6-sol"></option>
-      <option value="gpt-5.6-terra"></option>
-      <option value="gpt-5.6-luna"></option>
-      <option value="gpt-5.3-codex"></option>
-      <option value="codex-mini-latest"></option>
+      <option value="auto"></option>
     </datalist>
     <script type="module" src="/assets/app.js"></script>
   </body>

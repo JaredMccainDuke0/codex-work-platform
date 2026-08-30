@@ -12,6 +12,7 @@ import {
   recordsSha256,
   renameWithRetry,
   sha256File,
+  verifyRecords,
   walkFiles,
 } from "../installer/platform-common.mjs";
 
@@ -26,6 +27,8 @@ const defaultOutputRoot = path.join(
 );
 
 const mapping = [
+  ["version.mjs", "version.mjs"],
+  ["version.mjs", "app/version.mjs"],
   ["p10-control-server.mjs", "app/p10-control-server.mjs"],
   ["codex-adapter.mjs", "app/codex-adapter.mjs"],
   ["codex-app-server.mjs", "app/codex-app-server.mjs"],
@@ -124,11 +127,57 @@ function canonicalSourceBytes(source, relativePath) {
   return Buffer.from(bytes.toString("utf8").replace(/\r\n?/g, "\n"), "utf8");
 }
 
-export function buildPortableRelease(outputRootInput = defaultOutputRoot) {
+function prunePreviousOutputs(outputRoot, keep) {
+  const parent = path.dirname(outputRoot);
+  const prefix = `${path.basename(outputRoot)}.previous-`;
+  if (!fs.existsSync(parent)) return [];
+  const candidates = fs
+    .readdirSync(parent, { withFileTypes: true })
+    .filter((entry) => entry.name.startsWith(prefix))
+    .map((entry) => {
+      const absolute = path.join(parent, entry.name);
+      if (entry.isSymbolicLink() || !entry.isDirectory())
+        throw Error(`BUILD_PREVIOUS_INVALID:${entry.name}`);
+      return {
+        absolute,
+        name: entry.name,
+        modified: fs.statSync(absolute).mtimeMs,
+      };
+    })
+    .sort(
+      (left, right) =>
+        right.name.localeCompare(left.name) || right.modified - left.modified,
+    );
+  const removed = [];
+  for (const candidate of candidates.slice(keep)) {
+    if (path.dirname(candidate.absolute) !== parent)
+      throw Error(`BUILD_PREVIOUS_ESCAPE:${candidate.name}`);
+    fs.rmSync(candidate.absolute, {
+      recursive: true,
+      force: false,
+      maxRetries: 4,
+      retryDelay: 100,
+    });
+    removed.push(candidate.name);
+  }
+  return removed;
+}
+
+export function buildPortableRelease(
+  outputRootInput = defaultOutputRoot,
+  options = {},
+) {
   const outputRoot = assertNarrowRoot(
     path.resolve(outputRootInput),
     "outputRoot",
   );
+  const previousLimit = Number(options.previousLimit ?? 1);
+  if (
+    !Number.isSafeInteger(previousLimit) ||
+    previousLimit < 0 ||
+    previousLimit > 20
+  )
+    throw Error("BUILD_PREVIOUS_LIMIT_INVALID");
   const relativeToSource = path.relative(sourceRoot, outputRoot);
   const isInsideSource =
     relativeToSource === "" ||
@@ -142,6 +191,8 @@ export function buildPortableRelease(outputRootInput = defaultOutputRoot) {
   if (fs.existsSync(stageRoot))
     throw Error(`BUILD_STAGE_CONFLICT:${stageRoot}`);
   fs.mkdirSync(stageRoot, { recursive: true });
+  let previousRoot = null;
+  let activated = false;
   try {
     for (const [sourceRelative, targetRelative] of mapping) {
       const source = path.join(sourceRoot, ...sourceRelative.split("/"));
@@ -170,11 +221,32 @@ export function buildPortableRelease(outputRootInput = defaultOutputRoot) {
     atomicJson(path.join(stageRoot, RELEASE_MANIFEST), manifest);
     if (process.platform !== "win32")
       fs.chmodSync(path.join(stageRoot, RELEASE_MANIFEST), 0o644);
+    const staged = verifyRecords(stageRoot, files, {
+      exclude: [RELEASE_MANIFEST],
+      label: "staged-release",
+    });
+    if (staged.treeSha256 !== manifest.treeSha256)
+      throw Error("BUILD_STAGE_TREE_MISMATCH");
     if (fs.existsSync(outputRoot)) {
-      const previousRoot = `${outputRoot}.previous-${Date.now()}-${process.pid}-${crypto.randomBytes(3).toString("hex")}`;
+      const outputStat = fs.lstatSync(outputRoot);
+      if (outputStat.isSymbolicLink() || !outputStat.isDirectory())
+        throw Error("BUILD_OUTPUT_INVALID");
+      previousRoot = `${outputRoot}.previous-${Date.now()}-${process.pid}-${crypto.randomBytes(3).toString("hex")}`;
       renameWithRetry(outputRoot, previousRoot);
     }
-    renameWithRetry(stageRoot, outputRoot);
+    try {
+      renameWithRetry(stageRoot, outputRoot);
+      activated = true;
+    } catch (error) {
+      if (
+        previousRoot &&
+        fs.existsSync(previousRoot) &&
+        !fs.existsSync(outputRoot)
+      )
+        renameWithRetry(previousRoot, outputRoot);
+      throw error;
+    }
+    const prunedPrevious = prunePreviousOutputs(outputRoot, previousLimit);
     return {
       ok: true,
       outputRoot,
@@ -183,12 +255,26 @@ export function buildPortableRelease(outputRootInput = defaultOutputRoot) {
       treeSha256: manifest.treeSha256,
       fileCount: files.length,
       bytes: files.reduce((sum, record) => sum + record.bytes, 0),
+      previousLimit,
+      previousOutput:
+        previousRoot && fs.existsSync(previousRoot) ? previousRoot : null,
+      prunedPrevious,
     };
   } catch (error) {
     if (fs.existsSync(stageRoot)) {
       const failedRoot = `${stageRoot}.failed`;
       try {
         renameWithRetry(stageRoot, failedRoot);
+      } catch {}
+    }
+    if (
+      !activated &&
+      previousRoot &&
+      fs.existsSync(previousRoot) &&
+      !fs.existsSync(outputRoot)
+    ) {
+      try {
+        renameWithRetry(previousRoot, outputRoot);
       } catch {}
     }
     throw error;
@@ -202,6 +288,12 @@ const modulePath = fs.realpathSync.native(fileURLToPath(import.meta.url));
 if (invokedPath === modulePath) {
   try {
     const flags = new Map();
+    const flagValue = (flag, index) => {
+      const value = process.argv[index + 1];
+      if (value === undefined || value.startsWith("--"))
+        throw Error(`BUILD_ARGUMENT_REQUIRED:${flag}`);
+      return value;
+    };
     for (let index = 2; index < process.argv.length; index += 1) {
       const flag = process.argv[index];
       // npm 10/11 may forward an extra argument separator when a script is
@@ -209,18 +301,32 @@ if (invokedPath === modulePath) {
       // direct Node CLI and npm script behave identically.
       if (flag === "--") continue;
       if (flag === "--verify") {
+        if (flags.has(flag)) throw Error(`BUILD_ARGUMENT_DUPLICATE:${flag}`);
         flags.set("--verify", true);
         continue;
       }
       if (flag === "--version") {
-        const requested = process.argv[++index];
+        if (flags.has(flag)) throw Error(`BUILD_ARGUMENT_DUPLICATE:${flag}`);
+        const requested = flagValue(flag, index);
+        index += 1;
         if (requested !== P10_VERSION)
           throw Error(`BUILD_VERSION_MISMATCH:${requested}`);
         flags.set("--version", requested);
         continue;
       }
       if (flag === "--output") {
-        flags.set("--output", process.argv[++index]);
+        if (flags.has(flag)) throw Error(`BUILD_ARGUMENT_DUPLICATE:${flag}`);
+        flags.set("--output", flagValue(flag, index));
+        index += 1;
+        continue;
+      }
+      if (flag === "--previous-limit") {
+        if (flags.has(flag)) throw Error(`BUILD_ARGUMENT_DUPLICATE:${flag}`);
+        const value = Number(flagValue(flag, index));
+        index += 1;
+        if (!Number.isSafeInteger(value) || value < 0 || value > 20)
+          throw Error("BUILD_PREVIOUS_LIMIT_INVALID");
+        flags.set("--previous-limit", value);
         continue;
       }
       throw Error(`BUILD_ARGUMENT_UNKNOWN:${flag}`);
@@ -229,13 +335,17 @@ if (invokedPath === modulePath) {
       ? path.resolve(flags.get("--output"))
       : defaultOutputRoot;
     if (flags.get("--verify")) {
+      if (flags.has("--previous-limit"))
+        throw Error("BUILD_ARGUMENT_CONFLICT:--verify:--previous-limit");
       const { verifyPortableRelease } =
         await import("../installer/platform-manager.mjs");
       process.stdout.write(
         `${JSON.stringify(verifyPortableRelease(output))}\n`,
       );
     } else {
-      process.stdout.write(`${JSON.stringify(buildPortableRelease(output))}\n`);
+      process.stdout.write(
+        `${JSON.stringify(buildPortableRelease(output, { previousLimit: flags.get("--previous-limit") ?? 1 }))}\n`,
+      );
     }
   } catch (error) {
     process.stderr.write(

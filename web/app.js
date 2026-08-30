@@ -3,6 +3,8 @@ const locale = storedLocale === "zh-CN" ? "zh-CN" : "en";
 const translations = {
   en: {
     localWorkbench: "LOCAL WORKBENCH",
+    skipMain: "Skip to main content",
+    mainNavigation: "Main navigation",
     dashboard: "DASHBOARD",
     orchestration: "ORCHESTRATION",
     governance: "GOVERNANCE",
@@ -148,6 +150,8 @@ const translations = {
   },
   zh: {
     localWorkbench: "本地工作台",
+    skipMain: "跳到主要内容",
+    mainNavigation: "主导航",
     dashboard: "总览",
     overview: "总览",
     workflows: "工作流",
@@ -335,6 +339,8 @@ function showToast(message, kind = "") {
   if (!node) return;
   node.textContent = message;
   node.className = `toast ${kind}`;
+  node.setAttribute("role", kind === "error" ? "alert" : "status");
+  node.setAttribute("aria-live", kind === "error" ? "assertive" : "polite");
   node.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
@@ -372,14 +378,20 @@ function localizeStatic() {
     "aria-label",
     locale === "zh-CN" ? "Switch to English" : "切换到中文",
   );
+  document
+    .querySelector(".main-nav")
+    ?.setAttribute("aria-label", t("mainNavigation"));
 }
 function setView(name) {
   all(".view").forEach((view) => {
     view.hidden = view.id !== `view-${name}`;
   });
-  all(".nav-button").forEach((node) =>
-    node.classList.toggle("active", node.dataset.view === name),
-  );
+  all(".nav-button").forEach((node) => {
+    const active = node.dataset.view === name;
+    node.classList.toggle("active", active);
+    if (active) node.setAttribute("aria-current", "page");
+    else node.removeAttribute("aria-current");
+  });
   history.replaceState(
     null,
     "",
@@ -659,6 +671,7 @@ function renderSummary() {
   });
 }
 const orderDrafts = new Map();
+const orderKnownNodes = new Map();
 function renderOrderEditor() {
   const root = clear($("order-editor"));
   const graph = selectedGraph();
@@ -670,21 +683,52 @@ function renderOrderEditor() {
     return;
   }
   const incoming = new Map(graph.nodes.map((node) => [node.id, 0]));
-  graph.edges.forEach((edge) =>
-    incoming.set(edge.toNodeId, (incoming.get(edge.toNodeId) || 0) + 1),
-  );
+  const outgoing = new Map(graph.nodes.map((node) => [node.id, 0]));
+  graph.edges.forEach((edge) => {
+    incoming.set(edge.toNodeId, (incoming.get(edge.toNodeId) || 0) + 1);
+    outgoing.set(edge.fromNodeId, (outgoing.get(edge.fromNodeId) || 0) + 1);
+  });
   const roots = graph.nodes
     .filter((node) => incoming.get(node.id) === 0)
     .map((node) => node.id);
-  const fallback = roots.concat(
-    graph.nodes.map((node) => node.id).filter((id) => !roots.includes(id)),
-  );
-  let draft =
-    orderDrafts
-      .get(graph.workflow.id)
-      ?.filter((id) => graph.nodes.some((node) => node.id === id)) || fallback;
+  let currentLinearOrder = null;
+  if (
+    roots.length === 1 &&
+    graph.edges.length === Math.max(0, graph.nodes.length - 1) &&
+    [...incoming.values()].every((count) => count <= 1) &&
+    [...outgoing.values()].every((count) => count <= 1)
+  ) {
+    const next = new Map(
+      graph.edges.map((edge) => [edge.fromNodeId, edge.toNodeId]),
+    );
+    const visited = new Set();
+    const order = [];
+    let cursor = roots[0];
+    while (cursor && !visited.has(cursor)) {
+      visited.add(cursor);
+      order.push(cursor);
+      cursor = next.get(cursor);
+    }
+    if (order.length === graph.nodes.length) currentLinearOrder = order;
+  }
+  const fallback =
+    currentLinearOrder ||
+    roots.concat(
+      graph.nodes.map((node) => node.id).filter((id) => !roots.includes(id)),
+    );
+  const nodeIds = graph.nodes.map((node) => node.id);
+  const storedDraft = orderDrafts.get(graph.workflow.id);
+  const knownNodes = orderKnownNodes.get(graph.workflow.id);
+  let draft = storedDraft?.filter((id) => nodeIds.includes(id)) || [
+    ...fallback,
+  ];
+  if (storedDraft && knownNodes)
+    draft.push(
+      ...nodeIds.filter((id) => !knownNodes.has(id) && !draft.includes(id)),
+    );
   if (!draft.length) draft = fallback;
   orderDrafts.set(graph.workflow.id, draft);
+  orderKnownNodes.set(graph.workflow.id, new Set(nodeIds));
   const editor = document.createElement("div");
   editor.className = "order-editor";
   const list = document.createElement("div");
@@ -715,6 +759,7 @@ function renderOrderEditor() {
       const handle = document.createElement("span");
       handle.className = "order-handle";
       handle.textContent = "⋮⋮";
+      handle.setAttribute("aria-hidden", "true");
       handle.title = locale === "zh-CN" ? "拖动调整顺序" : "Drag to reorder";
       const number = document.createElement("span");
       number.className = "order-number";
@@ -810,23 +855,35 @@ function renderOrderEditor() {
     renderSlots();
   });
   const save = button(t("saveOrder"), "primary", async () => {
-    if (!edgeMatch && !confirm(t("confirmLinearize"))) return;
-    await act(`/api/p10/workflows/${graph.workflow.id}/order`, {
+    if (needsLinearizeConfirmation && !confirm(t("confirmLinearize"))) return;
+    const saved = await act(`/api/p10/workflows/${graph.workflow.id}/order`, {
       nodeIds: draft,
       expectedVersion: graph.workflow.version,
     });
-    orderDrafts.delete(graph.workflow.id);
+    if (!saved) return;
+    orderDrafts.set(graph.workflow.id, [...draft]);
+    orderKnownNodes.set(
+      graph.workflow.id,
+      new Set(graph.nodes.map((node) => node.id)),
+    );
   });
   const status = document.createElement("span");
   status.className = "order-status";
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
+  const expectedEdges = draft
+    .slice(1)
+    .map((nodeId, index) => `${draft[index]}\u0000${nodeId}`);
+  const actualEdges = new Set(
+    graph.edges.map((edge) => `${edge.fromNodeId}\u0000${edge.toNodeId}`),
+  );
   const edgeMatch =
-    graph.edges.length === Math.max(0, draft.length - 1) &&
-    graph.edges.every(
-      (edge, index) =>
-        edge.fromNodeId === draft[index] && edge.toNodeId === draft[index + 1],
-    );
+    actualEdges.size === expectedEdges.length &&
+    expectedEdges.every((edge) => actualEdges.has(edge));
+  const existingIsLinear = currentLinearOrder !== null;
+  const needsLinearizeConfirmation =
+    draft.length < graph.nodes.length ||
+    (graph.edges.length > 0 && !existingIsLinear);
   status.textContent = edgeMatch ? t("orderSaved") : t("orderDirty");
   status.classList.toggle("dirty", !edgeMatch);
   save.disabled = edgeMatch;
@@ -1387,6 +1444,7 @@ function bindForms() {
   $("new-project-toggle").addEventListener("click", () => {
     const form = $("project-form");
     form.hidden = !form.hidden;
+    $("new-project-toggle").setAttribute("aria-expanded", String(!form.hidden));
     if (!form.hidden) $("project-title").focus();
   });
   $("conversation-select").addEventListener("change", (event) => {
