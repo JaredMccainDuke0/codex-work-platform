@@ -10,7 +10,7 @@ npm test
 npm run test:coverage
 npm run test:e2e
 npm run public-audit:release
-node scripts/check-version.mjs --tag v1.0.1
+node scripts/check-version.mjs --tag v1.1.0
 npm run build:clean
 npm run verify-release
 ```

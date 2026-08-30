@@ -11,6 +11,8 @@
 
 Behavior changes must include a regression test. Changes to the vendored
 compatibility runtime must update its provenance and third-party notice files.
+Control-service infrastructure belongs under `server/`; extraction commits
+must preserve the existing HTTP, event, database, and rollback contracts.
 
 The coverage command enforces at least 90% line and 80% branch coverage for
 the deterministic state, validation, and workflow-core modules. The full

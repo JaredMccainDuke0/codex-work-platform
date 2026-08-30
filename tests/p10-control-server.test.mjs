@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import http from "node:http";
@@ -1193,6 +1193,56 @@ test("control server rejects unknown and duplicate startup arguments", async () 
     const code = await new Promise((resolve) => child.once("close", resolve));
     assert.notEqual(code, 0, args.join(" "));
   }
+});
+
+test("invalid compatibility responses do not leave project directories", async (t) => {
+  const dir = await mkdtemp(path.join(tmpdir(), "cwp-p10-invalid-compat-"));
+  const workspace = path.join(dir, "workspace");
+  const compat = http.createServer((req, res) => {
+    if (req.url === "/healthz") {
+      res.setHeader("content-type", "application/json");
+      return res.end('{"ok":true}');
+    }
+    if (req.url === "/api/projects" && req.method === "POST") {
+      res.setHeader("content-type", "application/json");
+      return res.end("not-json");
+    }
+    res.writeHead(404).end();
+  });
+  await new Promise((resolve) => compat.listen(0, "127.0.0.1", resolve));
+  const port = await getFreePort();
+  const url = `http://127.0.0.1:${port}`;
+  const child = spawn(
+    process.execPath,
+    [
+      path.join(root, "p10-control-server.mjs"),
+      "--db",
+      path.join(dir, "platform.sqlite"),
+      "--control-db",
+      path.join(dir, "control.sqlite"),
+      "--workspace-root",
+      workspace,
+      "--compat-base",
+      `http://127.0.0.1:${compat.address().port}`,
+      "--port",
+      String(port),
+    ],
+    { stdio: "ignore" },
+  );
+  t.after(async () => {
+    await stopChild(child);
+    await new Promise((resolve) => compat.close(resolve));
+    await rm(dir, { recursive: true, force: true });
+  });
+  await waitForHealth(url);
+  const response = await fetch(`${url}/api/projects`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ title: "Broken project" }),
+  });
+  assert.equal(response.status, 502);
+  assert.equal((await response.json()).code, "COMPAT_RESPONSE_INVALID");
+  await assert.rejects(access(path.join(workspace, "Broken project")));
 });
 
 test("readiness separates a live control process from an unavailable compat service", async (t) => {

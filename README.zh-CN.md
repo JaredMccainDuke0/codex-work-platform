@@ -28,8 +28,8 @@ npm run dev
 构建并校验便携包：
 
 ```bash
-npm run build -- -- --output ./output/codex-work-platform-1.0.1-portable
-npm run verify-release -- ./output/codex-work-platform-1.0.1-portable
+npm run build -- -- --output ./output/codex-work-platform-1.1.0-portable
+npm run verify-release -- ./output/codex-work-platform-1.1.0-portable
 ```
 
 多出的一个 `--` 用于兼容不同 npm 版本的参数转发；也可以直接运行
@@ -60,7 +60,9 @@ npm run verify-release -- ./output/codex-work-platform-1.0.1-portable
 自动化验收与实体机验收会明确区分：Windows、macOS arm64 和 Linux 已进入
 CI；全新 Windows 实体机、Windows 重启自动启动和 macOS arm64 实体机仍不
 宣称已完成。内置 compat-runtime 当前是独立的 1.0.0 组件版本，不要求与
-工作台版本号同步。
+工作台版本号同步。原始 TypeScript checkout 和 lockfile 经本机、Git 历史与
+公开代码搜索仍未找到；仓库只记录可验证的[恢复证据](vendor/compat-runtime/RECOVERY.md)
+和[替换契约](vendor/compat-runtime/CONTRACT.md)，不会把生成后的 bundle 冒充源码。
 
 更多说明请阅读英文版 [README.md](README.md)、[贡献指南](CONTRIBUTING.md)
 和[安全策略](SECURITY.md)。

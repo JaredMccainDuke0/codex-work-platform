@@ -125,7 +125,7 @@ export function verifyPortableRelease(releaseRootInput) {
   if (
     manifest.product !== PRODUCT ||
     typeof manifest.version !== "string" ||
-    !/^(?:0\.10\.\d+(?:-[0-9A-Za-z.-]+)?|1\.0\.\d+(?:-[0-9A-Za-z.-]+)?)$/.test(
+    !/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(
       manifest.version,
     ) ||
     manifest.manifestSelf !== "EXCLUDED_SELF_REFERENCE"

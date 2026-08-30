@@ -1,6 +1,6 @@
 {
   "name": "codex-work-platform",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "A local-first Codex workflow workbench with approvals, durable state, and recoverable execution.",
   "license": "MIT",
   "author": {
@@ -20,7 +20,9 @@
     "docs/",
     "installer/",
     "release/compat-runtime/",
+    "server/",
     "scripts/",
+    "vendor/",
     "web/",
     "*.mjs",
     "*.md",

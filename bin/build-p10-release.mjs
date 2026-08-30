@@ -29,6 +29,15 @@ const defaultOutputRoot = path.join(
 const mapping = [
   ["version.mjs", "version.mjs"],
   ["version.mjs", "app/version.mjs"],
+  ["server/compat-client.mjs", "app/server/compat-client.mjs"],
+  ["server/config.mjs", "app/server/config.mjs"],
+  ["server/directory-picker.mjs", "app/server/directory-picker.mjs"],
+  ["server/errors.mjs", "app/server/errors.mjs"],
+  ["server/http.mjs", "app/server/http.mjs"],
+  ["server/idempotency.mjs", "app/server/idempotency.mjs"],
+  ["server/path-security.mjs", "app/server/path-security.mjs"],
+  ["server/redaction.mjs", "app/server/redaction.mjs"],
+  ["server/static-assets.mjs", "app/server/static-assets.mjs"],
   ["p10-control-server.mjs", "app/p10-control-server.mjs"],
   ["codex-adapter.mjs", "app/codex-adapter.mjs"],
   ["codex-app-server.mjs", "app/codex-app-server.mjs"],
@@ -91,6 +100,12 @@ const mapping = [
   ["docs/migrations.md", "docs/migrations.md"],
   ["docs/release.md", "docs/release.md"],
   ["vendor/compat-runtime/SOURCES.json", "vendor/compat-runtime/SOURCES.json"],
+  ["vendor/compat-runtime/CONTRACT.md", "vendor/compat-runtime/CONTRACT.md"],
+  [
+    "vendor/compat-runtime/CONTRACT.json",
+    "vendor/compat-runtime/CONTRACT.json",
+  ],
+  ["vendor/compat-runtime/RECOVERY.md", "vendor/compat-runtime/RECOVERY.md"],
   [
     "vendor/compat-runtime/THIRD_PARTY_NOTICES.md",
     "vendor/compat-runtime/THIRD_PARTY_NOTICES.md",

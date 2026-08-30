@@ -1,22 +1,37 @@
 #!/usr/bin/env node
 import http from "node:http";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
-import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { PRODUCT_VERSION } from "./version.mjs";
 import {
   MockCodexAdapter,
   LocalCodexCliAdapter,
-  loadOfficialChatGptConfig,
   redactSecrets,
   sanitizeSummary,
 } from "./codex-adapter.mjs";
-import { safeSnapshot } from "./p10-state.mjs";
 import { CodexAppServerAdapter } from "./codex-app-server-adapter.mjs";
 import { StateStore } from "./state-store.mjs";
+import { CompatClient } from "./server/compat-client.mjs";
+import { loadControlConfig } from "./server/config.mjs";
+import { runDirectoryPicker } from "./server/directory-picker.mjs";
+import { publicErrorCode, statusForError } from "./server/errors.mjs";
+import {
+  originAllowed,
+  queryInteger,
+  readJsonBody as body,
+  sendJson as json,
+} from "./server/http.mjs";
+import { createIdempotencyExecutor } from "./server/idempotency.mjs";
+import {
+  pathWithinRoot,
+  safeDirectoryName,
+  safetyPath,
+  sensitiveDirectory,
+} from "./server/path-security.mjs";
+import { serveWebAsset as serveStaticWebAsset } from "./server/static-assets.mjs";
+import { cleanSnapshot } from "./server/redaction.mjs";
 import {
   boundedText,
   validateConversationPrompt,
@@ -33,163 +48,36 @@ import {
   replaceWorkflowOrder,
 } from "./workflow-core.mjs";
 
-const args = new Map();
-const allowedArguments = new Set([
-  "--allow-web-search",
-  "--auto-approve-high-risk",
-  "--codex-command",
-  "--codex-home",
-  "--compat-base",
-  "--control-db",
-  "--db",
-  "--default-no-progress-timeout-ms",
-  "--default-run-timeout-ms",
-  "--instance-id",
-  "--port",
-  "--request-token",
-  "--shutdown-token",
-  "--tick-ms",
-  "--watchdog-ms",
-  "--workspace-root",
-]);
-for (let i = 2; i < process.argv.length; i += 2) {
-  if (
-    !process.argv[i]?.startsWith("--") ||
-    process.argv[i + 1] === undefined ||
-    process.argv[i + 1]?.startsWith("--")
-  )
-    throw Error(`INVALID_ARGUMENTS_AT:${i - 2}`);
-  if (!allowedArguments.has(process.argv[i]))
-    throw Error(`ARGUMENT_UNKNOWN:${process.argv[i]}`);
-  if (args.has(process.argv[i]))
-    throw Error(`ARGUMENT_DUPLICATE:${process.argv[i]}`);
-  args.set(process.argv[i], process.argv[i + 1]);
-}
-const port = Number(args.get("--port") ?? 19738);
-const host = "127.0.0.1";
-const compatBase = args.get("--compat-base") ?? "http://127.0.0.1:19737";
-const tickMs = positiveInteger(
-  args.get("--tick-ms"),
-  800,
-  "TICK_INTERVAL_INVALID",
-  25,
-);
-const db = path.resolve(args.get("--db") ?? "./platform.sqlite");
-const workspaceRoot = path.resolve(
-  args.get("--workspace-root") ?? process.cwd(),
-);
-const codexCommand = args.get("--codex-command") ?? "codex";
-const codexHome = path.resolve(
-  args.get("--codex-home") ??
-    process.env.CODEX_HOME ??
-    path.join(os.homedir(), ".codex"),
-);
-const codexProviderConfig = loadOfficialChatGptConfig(
-  path.join(codexHome, "config.toml"),
-);
-const allowWebSearch = booleanArgument("--allow-web-search", true);
-const autoApproveHighRisk = booleanArgument("--auto-approve-high-risk", false);
-const instanceId = args.get("--instance-id") ?? null;
-const requestToken = String(args.get("--request-token") ?? "");
-const shutdownToken = String(args.get("--shutdown-token") ?? requestToken);
+const {
+  allowWebSearch,
+  autoApproveHighRisk,
+  codexCommand,
+  codexHome,
+  codexProviderConfig,
+  compatBase,
+  compatEndpoint,
+  controlDatabasePath,
+  db,
+  defaultNoProgressTimeoutMs,
+  defaultRunTimeoutMs,
+  host,
+  instanceId,
+  legacyStatePath,
+  port,
+  requestToken,
+  shutdownToken,
+  tickMs,
+  watchdogMs,
+  workspaceRoot,
+} = loadControlConfig();
+const compatClient = new CompatClient({
+  baseUrl: compatBase,
+  endpoint: compatEndpoint,
+});
 const workbenchVersion = PRODUCT_VERSION;
 const webRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "web");
-const legacyStatePath = `${db}.p10.json`;
-const controlDatabasePath = path.resolve(
-  args.get("--control-db") ?? `${db}.p10.sqlite`,
-);
-if (
-  (process.platform === "win32"
-    ? controlDatabasePath.toLowerCase()
-    : controlDatabasePath) ===
-  (process.platform === "win32" ? db.toLowerCase() : db)
-)
-  throw Error("CONTROL_DB_MUST_BE_SEPARATE");
-if (!Number.isInteger(port) || port < 1 || port > 65535)
-  throw Error("PORT_INVALID");
-let compatEndpoint;
-try {
-  compatEndpoint = new URL(compatBase);
-  if (
-    compatEndpoint.protocol !== "http:" ||
-    compatEndpoint.username ||
-    compatEndpoint.password ||
-    compatEndpoint.search ||
-    compatEndpoint.hash ||
-    !["127.0.0.1", "localhost", "[::1]", "::1"].includes(
-      compatEndpoint.hostname.toLowerCase(),
-    )
-  )
-    throw Error("COMPAT_BASE_NOT_LOOPBACK");
-} catch (error) {
-  if (error?.message === "COMPAT_BASE_NOT_LOOPBACK") throw error;
-  throw Error("COMPAT_BASE_INVALID");
-}
-if (
-  requestToken.length > 256 ||
-  shutdownToken.length > 256 ||
-  /[\r\n\0]/.test(requestToken) ||
-  /[\r\n\0]/.test(shutdownToken)
-)
-  throw Error("REQUEST_TOKEN_INVALID");
 const now = () => new Date().toISOString();
 const id = () => crypto.randomUUID();
-function positiveInteger(value, fallback, code, minimum = 100) {
-  if (value === undefined || value === null || value === "") return fallback;
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < minimum) throw Error(code);
-  return parsed;
-}
-function booleanArgument(name, fallback) {
-  const value = args.get(name);
-  if (value === undefined) return fallback;
-  if (value === "true") return true;
-  if (value === "false") return false;
-  throw Error(`ARGUMENT_BOOLEAN_INVALID:${name}`);
-}
-function optionalPositiveNumber(value, code, { integer = false } = {}) {
-  if (value === undefined || value === null || value === "") return null;
-  const parsed = Number(value);
-  if (
-    !Number.isFinite(parsed) ||
-    parsed <= 0 ||
-    (integer && !Number.isInteger(parsed))
-  )
-    throw Error(code);
-  return parsed;
-}
-const defaultRunTimeoutMs = positiveInteger(
-  args.get("--default-run-timeout-ms"),
-  30 * 60_000,
-  "DEFAULT_RUN_TIMEOUT_INVALID",
-);
-const defaultNoProgressTimeoutMs = positiveInteger(
-  args.get("--default-no-progress-timeout-ms"),
-  5 * 60_000,
-  "DEFAULT_NO_PROGRESS_TIMEOUT_INVALID",
-);
-const watchdogMs = positiveInteger(
-  args.get("--watchdog-ms"),
-  1000,
-  "WATCHDOG_INTERVAL_INVALID",
-  25,
-);
-const sensitiveKey =
-  /(?:api[_-]?key|access[_-]?token|refresh[_-]?token|secret|password|authorization|cookie)/i;
-function redactSecretsDeep(value, key = "") {
-  if (sensitiveKey.test(String(key))) return "[REDACTED]";
-  if (typeof value === "string") return redactSecrets(value);
-  if (Array.isArray(value))
-    return value.map((item) => redactSecretsDeep(item, key));
-  if (!value || typeof value !== "object") return value;
-  return Object.fromEntries(
-    Object.entries(value).map(([childKey, child]) => [
-      childKey,
-      redactSecretsDeep(child, childKey),
-    ]),
-  );
-}
-const cleanSnapshot = (value) => redactSecretsDeep(safeSnapshot(value));
 if (sensitiveDirectory(workspaceRoot))
   throw Error("WORKSPACE_ROOT_SENSITIVE_DIRECTORY");
 const stateStore = new StateStore({
@@ -262,6 +150,13 @@ const save = () => {
   }
 };
 if (rootsChanged) save();
+const executeIdempotent = createIdempotencyExecutor({
+  state,
+  save,
+  cleanSnapshot,
+  createKey: id,
+  now,
+});
 const clients = new Set();
 const adapters = new Map([
   ["mock", new MockCodexAdapter({ tickMs })],
@@ -324,94 +219,18 @@ function emit(type, payload) {
   }
   return event;
 }
-function json(res, status, body) {
-  res.writeHead(status, {
-    "content-type": "application/json; charset=utf-8",
-    "cache-control": "no-store",
-    "x-content-type-options": "nosniff",
-  });
-  res.end(JSON.stringify(body));
-}
-const maxRequestBytes = 4 * 1024 * 1024;
-const idempotencyInflight = new Map();
-async function body(req) {
-  const declared = Number(req.headers["content-length"]);
-  if (Number.isSafeInteger(declared) && declared > maxRequestBytes)
-    throw Error("REQUEST_BODY_TOO_LARGE");
-  let size = 0;
-  const chunks = [];
-  for await (const chunk of req) {
-    size += Buffer.byteLength(chunk);
-    if (size > maxRequestBytes) throw Error("REQUEST_BODY_TOO_LARGE");
-    chunks.push(chunk);
-  }
-  const text = Buffer.concat(chunks).toString("utf8");
-  if (!text) return {};
-  const parsed = JSON.parse(text);
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
-    throw Error("REQUEST_BODY_OBJECT_REQUIRED");
-  return parsed;
-}
 async function idempotent(req, res, status, handler) {
-  const suppliedKey = String(req.headers["idempotency-key"] ?? "").trim();
-  if (suppliedKey.length > 200) throw Error("IDEMPOTENCY_KEY_TOO_LONG");
-  if (/[\r\n\0]/.test(suppliedKey)) throw Error("IDEMPOTENCY_KEY_INVALID");
-  const key = suppliedKey || crypto.randomUUID();
-  const scope = `${req.method}:${req.url}:${key}`;
-  if (suppliedKey && state.idempotency[scope]) {
-    const cached = state.idempotency[scope];
-    return json(res, cached.status, cached.body);
-  }
-  if (suppliedKey && idempotencyInflight.has(scope)) {
-    const result = await idempotencyInflight.get(scope);
-    return json(res, result.status, result.body);
-  }
-  const operation = (async () => {
-    const responseBody = await handler(key);
-    const cleanBody = cleanSnapshot(responseBody);
-    if (suppliedKey) {
-      state.idempotency[scope] = {
-        status,
-        body: cleanBody,
-        createdAt: now(),
-      };
-      const keys = Object.keys(state.idempotency);
-      if (keys.length > 2000) {
-        keys.sort((left, right) =>
-          String(state.idempotency[left]?.createdAt || "").localeCompare(
-            String(state.idempotency[right]?.createdAt || ""),
-          ),
-        );
-        for (const oldKey of keys.slice(0, keys.length - 2000))
-          delete state.idempotency[oldKey];
-      }
-      save();
-    }
-    return { status, body: cleanBody };
-  })();
-  if (suppliedKey) idempotencyInflight.set(scope, operation);
-  try {
-    const result = await operation;
-    return json(res, result.status, result.body);
-  } finally {
-    if (suppliedKey) idempotencyInflight.delete(scope);
-  }
+  const result = await executeIdempotent({
+    method: req.method,
+    url: req.url,
+    suppliedKey: req.headers["idempotency-key"],
+    status,
+    handler,
+  });
+  return json(res, result.status, result.body);
 }
 function findRun(runId) {
   return state.runs.find((r) => r.id === runId);
-}
-function pathWithinRoot(candidate, root) {
-  const normalize = (value) => {
-    const resolved = path.resolve(value);
-    return process.platform === "win32" ? resolved.toLowerCase() : resolved;
-  };
-  const resolved = normalize(candidate);
-  const base = normalize(root);
-  const relative = path.relative(base, resolved);
-  return (
-    relative === "" ||
-    (relative && !relative.startsWith("..") && !path.isAbsolute(relative))
-  );
 }
 function allowedRoots() {
   return [
@@ -428,62 +247,6 @@ function pathWithinAllowedRoots(candidate) {
     pathWithinRoot(resolved, safetyPath(root)),
   );
 }
-function safetyPath(candidate) {
-  const resolved = path.resolve(String(candidate));
-  try {
-    return fs.realpathSync.native(resolved);
-  } catch {
-    let current = resolved;
-    const suffix = [];
-    while (!fs.existsSync(current)) {
-      const parent = path.dirname(current);
-      if (parent === current) return resolved;
-      suffix.unshift(path.basename(current));
-      current = parent;
-    }
-    try {
-      return path.join(fs.realpathSync.native(current), ...suffix);
-    } catch {
-      return resolved;
-    }
-  }
-}
-function sensitiveDirectory(candidate) {
-  const resolved = safetyPath(candidate).toLowerCase();
-  const home = os.homedir().toLowerCase();
-  const forbidden = [path.join(home, ".codex").toLowerCase()];
-  if (process.platform === "win32")
-    forbidden.push(
-      path.resolve(process.env.SystemRoot || "C:\\Windows").toLowerCase(),
-      path
-        .resolve(process.env.ProgramFiles || "C:\\Program Files")
-        .toLowerCase(),
-      path.resolve(process.env.ProgramData || "C:\\ProgramData").toLowerCase(),
-    );
-  else
-    forbidden.push(
-      "/etc",
-      "/usr",
-      "/bin",
-      "/sbin",
-      "/system",
-      "/library",
-      "/private/etc",
-      "/private/var/root",
-      "/private/var/db",
-      "/private/system",
-      "/private/library",
-      path.join(home, ".ssh").toLowerCase(),
-      path.join(home, ".aws").toLowerCase(),
-      path.join(home, ".gnupg").toLowerCase(),
-      path.join(home, "library", "keychains").toLowerCase(),
-    );
-  return (
-    forbidden.some((root) => pathWithinRoot(resolved, root)) ||
-    (process.platform !== "win32" && resolved === path.parse(resolved).root) ||
-    (process.platform === "win32" && /^[a-z]:\\?$/.test(resolved))
-  );
-}
 function defaultProjectRoot(input = null, projectId = null) {
   const candidate = path.resolve(
     String(
@@ -498,116 +261,6 @@ function defaultProjectRoot(input = null, projectId = null) {
   if (sensitiveDirectory(candidate))
     throw Error("PROJECT_ROOT_SENSITIVE_DIRECTORY");
   return candidate;
-}
-function runDirectoryPicker() {
-  const platform = process.platform;
-  if (platform === "win32") {
-    const pickerRoot = fs.mkdtempSync(
-      path.join(os.tmpdir(), "codex-workbench-picker-"),
-    );
-    const scriptPath = path.join(pickerRoot, "pick.ps1");
-    const resultPath = path.join(pickerRoot, "result.txt");
-    const script = `$ErrorActionPreference='Stop'; try { Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Application]::EnableVisualStyles(); $d=New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description='选择 Codex 工作目录'; $d.ShowNewFolderButton=$true; if($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){ Set-Content -LiteralPath '${resultPath.replace(/'/g, "''")}' -Value $d.SelectedPath -Encoding UTF8 } else { Set-Content -LiteralPath '${resultPath.replace(/'/g, "''")}' -Value '__CANCELLED__' -Encoding UTF8 } } catch { Set-Content -LiteralPath '${resultPath.replace(/'/g, "''")}' -Value ('__ERROR__'+$_.Exception.Message) -Encoding UTF8 }`;
-    fs.writeFileSync(scriptPath, script, "utf8");
-    return new Promise((resolve, reject) => {
-      const child = spawn(
-        "powershell.exe",
-        [
-          "-NoProfile",
-          "-STA",
-          "-WindowStyle",
-          "Normal",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
-          scriptPath,
-        ],
-        { windowsHide: false, detached: true, stdio: "ignore" },
-      );
-      child.unref();
-      const startedAt = Date.now();
-      let childExited = false;
-      child.once("error", (error) => {
-        childExited = true;
-      });
-      child.once("exit", () => {
-        childExited = true;
-      });
-      const poll = setInterval(() => {
-        if (Date.now() - startedAt > 30000) {
-          clearInterval(poll);
-          try {
-            fs.rmSync(pickerRoot, { recursive: true, force: true });
-          } catch {}
-          reject(new Error("NATIVE_DIRECTORY_PICKER_TIMEOUT"));
-          return;
-        }
-        if (!fs.existsSync(resultPath)) {
-          if (childExited && Date.now() - startedAt > 1000) {
-            clearInterval(poll);
-            try {
-              fs.rmSync(pickerRoot, { recursive: true, force: true });
-            } catch {}
-            reject(new Error("NATIVE_DIRECTORY_PICKER_LAUNCH_FAILED"));
-          }
-          return;
-        }
-        clearInterval(poll);
-        const value = fs
-          .readFileSync(resultPath, "utf8")
-          .replace(/^\uFEFF/, "")
-          .trim();
-        try {
-          fs.rmSync(pickerRoot, { recursive: true, force: true });
-        } catch {}
-        if (!value || value === "__CANCELLED__")
-          reject(new Error("DIRECTORY_PICKER_CANCELLED"));
-        else if (value.startsWith("__ERROR__"))
-          reject(new Error(value.slice(9)));
-        else resolve(value);
-      }, 250);
-    });
-  }
-  const command =
-    platform === "darwin"
-      ? {
-          file: "osascript",
-          args: [
-            "-e",
-            'POSIX path of (choose folder with prompt "选择 Codex 工作目录")',
-          ],
-        }
-      : null;
-  if (!command)
-    return Promise.reject(new Error("NATIVE_DIRECTORY_PICKER_UNSUPPORTED"));
-  return new Promise((resolve, reject) => {
-    const child = spawn(command.file, command.args, {
-      windowsHide: false,
-      detached: true,
-    });
-    let stdout = "";
-    let stderr = "";
-    const timer = setTimeout(() => {
-      child.kill();
-      reject(new Error("NATIVE_DIRECTORY_PICKER_TIMEOUT"));
-    }, 30000);
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk.toString();
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString();
-    });
-    child.once("error", (error) => {
-      clearTimeout(timer);
-      reject(error);
-    });
-    child.once("close", (code) => {
-      clearTimeout(timer);
-      const selected = stdout.trim();
-      if (code === 0 && selected) resolve(selected);
-      else reject(new Error(stderr.trim() || "DIRECTORY_PICKER_CANCELLED"));
-    });
-  });
 }
 function deleteWorkflow(workflowId, idempotencyKey) {
   const workflow = state.workflows.find((item) => item.id === workflowId);
@@ -2048,137 +1701,24 @@ function expirePendingApprovals() {
 function workflowContext(idempotencyKey = null) {
   return { id, now, emit, idempotencyKey };
 }
-function statusForError(code) {
-  if (code === "Unexpected end of JSON input" || code.includes("JSON"))
-    return 400;
-  if (code === "REQUEST_TOKEN_REQUIRED" || code === "ORIGIN_NOT_ALLOWED")
-    return 403;
-  if (code === "EVENT_STREAM_LIMIT_REACHED") return 429;
-  if (code === "REQUEST_BODY_TOO_LARGE") return 413;
-  if (code === "REQUEST_URL_TOO_LONG") return 414;
-  if (code === "REQUEST_CONCURRENCY_LIMIT") return 429;
-  if (code === "REQUEST_BODY_OBJECT_REQUIRED") return 400;
-  if (code === "REQUEST_TIMEOUT") return 504;
-  if (code === "CONVERSATION_NOT_FOUND") return 410;
-  if (code.endsWith("_NOT_FOUND")) return 404;
-  if (
-    /(REQUIRED|INVALID|OUTSIDE_ALLOWED_ROOT|SENSITIVE_DIRECTORY_FORBIDDEN|PROJECT_ROOT_|PROJECT_DIRECTORY_)/.test(
-      code,
-    )
-  )
-    return 400;
-  if (
-    /(CONFLICT|CYCLE|SELF_DEPENDENCY|NOT_PENDING|NOT_RUNNING|NOT_PAUSED|NOT_TERMINABLE|NOT_VERIFYING|NOT_DISPATCHABLE|NOT_RETRYABLE|RETRY_LIMIT_REACHED|APPROVAL_REQUIRED|ALREADY_RUNNING|EXPIRED)$/.test(
-      code,
-    )
-  )
-    return 409;
-  if (
-    /^(CODEX_CLI_NOT_AVAILABLE|CODEX_CLI_NOT_AUTHENTICATED|CODEX_NETWORK_POLICY_NOT_CONFIGURED)/.test(
-      code,
-    )
-  )
-    return 503;
-  return 503;
-}
-function publicErrorCode(error) {
-  const raw = redactSecrets(error?.message || String(error || "INTERNAL_ERROR"))
-    .replace(/[\r\n]+/g, " ")
-    .trim();
-  if (/^[A-Z][A-Z0-9_]*$/.test(raw)) return raw;
-  const prefix = raw.match(/^([A-Z][A-Z0-9_]*):/);
-  if (prefix) return prefix[1];
-  if (/no rollout found|thread not loaded|conversation.*not found/i.test(raw))
-    return "CONVERSATION_NOT_FOUND";
-  if (/timed? out|timeout/i.test(raw)) return "REQUEST_TIMEOUT";
-  return "INTERNAL_ERROR";
-}
-function queryInteger(value, fallback, minimum, maximum) {
-  if (value === null || value === undefined || value === "") return fallback;
-  const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed)) return fallback;
-  return Math.max(minimum, Math.min(maximum, parsed));
-}
 async function proxyCompat(req, res) {
   if (!String(req.url || "").startsWith("/"))
     throw Error("COMPAT_PATH_INVALID");
-  const target = new URL(req.url, compatBase);
-  if (target.origin !== compatEndpoint.origin)
-    throw Error("COMPAT_ORIGIN_INVALID");
-  const init = {
+  const upstream = await compatClient.proxy({
+    url: req.url,
     method: req.method,
-    headers: {
-      accept: req.headers.accept ?? "*/*",
-      "content-type": req.headers["content-type"] ?? "application/json",
-      ...(req.headers["idempotency-key"]
-        ? { "idempotency-key": req.headers["idempotency-key"] }
-        : {}),
-    },
-    signal: AbortSignal.timeout(10_000),
-  };
-  if (!["GET", "HEAD"].includes(req.method))
-    init.body = JSON.stringify(await body(req));
-  let upstream;
-  try {
-    upstream = await fetch(target, init);
-  } catch {
-    throw Error("COMPAT_UNAVAILABLE");
-  }
-  const payload = await upstream.arrayBuffer();
-  if (payload.byteLength > 8 * 1024 * 1024)
-    throw Error("UPSTREAM_RESPONSE_TOO_LARGE");
+    accept: req.headers.accept,
+    contentType: req.headers["content-type"],
+    idempotencyKey: req.headers["idempotency-key"],
+    body: ["GET", "HEAD"].includes(req.method) ? undefined : await body(req),
+  });
   res.writeHead(upstream.status, {
-    "content-type": upstream.headers.get("content-type") ?? "application/json",
+    "content-type": upstream.contentType,
     "cache-control": "no-store",
   });
-  res.end(Buffer.from(payload));
+  res.end(upstream.bytes);
 }
-async function compatReady() {
-  try {
-    const response = await fetch(`${compatBase}/healthz`, {
-      signal: AbortSignal.timeout(1500),
-    });
-    if (!response.ok) return { ok: false, status: response.status };
-    const value = await response.json();
-    return { ok: value?.ok === true, status: response.status };
-  } catch (error) {
-    return { ok: false, error: redactSecrets(error?.message || String(error)) };
-  }
-}
-function serveWebAsset(res, relativePath) {
-  const safe = String(relativePath || "").replaceAll("\\", "/");
-  const absolute = path.resolve(webRoot, safe);
-  if (
-    !pathWithinRoot(absolute, webRoot) ||
-    !fs.existsSync(absolute) ||
-    !fs.statSync(absolute).isFile()
-  )
-    return json(res, 404, { ok: false, code: "ASSET_NOT_FOUND" });
-  const types = {
-    ".html": "text/html; charset=utf-8",
-    ".js": "text/javascript; charset=utf-8",
-    ".css": "text/css; charset=utf-8",
-    ".json": "application/json; charset=utf-8",
-    ".svg": "image/svg+xml",
-  };
-  res.writeHead(200, {
-    "content-type":
-      types[path.extname(absolute).toLowerCase()] || "application/octet-stream",
-    "cache-control": "no-cache",
-    "x-content-type-options": "nosniff",
-  });
-  return res.end(fs.readFileSync(absolute));
-}
-function safeDirectoryName(value) {
-  const normalized = String(value ?? "")
-    .trim()
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "-")
-    .replace(/[. ]+$/g, "")
-    .slice(0, 80);
-  if (!normalized || normalized === "." || normalized === "..")
-    throw Error("PROJECT_DIRECTORY_NAME_INVALID");
-  return normalized;
-}
+const compatReady = () => compatClient.ready();
 async function createProjectThroughCompat(req, res) {
   const input = await body(req);
   input.title = boundedText(input.title, "PROJECT_TITLE_REQUIRED", 200, {
@@ -2197,10 +1737,9 @@ async function createProjectThroughCompat(req, res) {
       throw Error("PROJECT_DIRECTORY_ALREADY_EXISTS");
     throw error;
   }
-  const target = new URL("/api/projects", compatBase);
   let upstream;
   try {
-    upstream = await fetch(target, {
+    upstream = await compatClient.requestJson("/api/projects", {
       method: "POST",
       headers: {
         accept: "application/json",
@@ -2209,25 +1748,24 @@ async function createProjectThroughCompat(req, res) {
           req.headers["idempotency-key"] ?? crypto.randomUUID(),
       },
       body: JSON.stringify({ ...input, projectDirectory }),
-      signal: AbortSignal.timeout(10_000),
     });
-  } catch {
+  } catch (error) {
     try {
       fs.rmSync(projectDirectory, { recursive: true, force: true });
     } catch {}
-    throw Error("COMPAT_UNAVAILABLE");
+    throw error;
   }
-  const payload = await upstream.json();
-  if (upstream.ok && payload.project?.id) {
+  const { ok, status, payload } = upstream;
+  if (ok && payload.project?.id) {
     state.projectDirectories[payload.project.id] = projectDirectory;
     save();
   }
-  if (!upstream.ok) {
+  if (!ok) {
     try {
       fs.rmSync(projectDirectory, { recursive: true, force: true });
     } catch {}
   }
-  return json(res, upstream.status, payload);
+  return json(res, status, payload);
 }
 await recoverPersistedRuns();
 const watchdog = setInterval(() => {
@@ -2255,14 +1793,7 @@ const server = http.createServer(async (req, res) => {
     const u = new URL(req.url, `http://${host}`);
     const mutating = !["GET", "HEAD", "OPTIONS"].includes(req.method);
     const origin = String(req.headers.origin ?? "");
-    const sameOrigin =
-      !origin ||
-      [
-        `http://${host}:${port}`,
-        `http://localhost:${port}`,
-        `http://[::1]:${port}`,
-      ].includes(origin);
-    if (origin && !sameOrigin)
+    if (!originAllowed(origin, { host, port }))
       return json(res, 403, { ok: false, code: "ORIGIN_NOT_ALLOWED" });
     if (
       mutating &&
@@ -2376,23 +1907,22 @@ const server = http.createServer(async (req, res) => {
     const projectDeleteMatch = u.pathname.match(/^\/api\/projects\/([^/]+)$/);
     if (projectDeleteMatch && req.method === "DELETE") {
       return await idempotent(req, res, 200, async (key) => {
-        const target = new URL(
+        const upstream = await compatClient.requestJson(
           `/api/projects/${encodeURIComponent(projectDeleteMatch[1])}`,
-          compatBase,
-        );
-        const upstream = await fetch(target, {
-          method: "DELETE",
-          headers: {
-            accept: "application/json",
-            "content-type": "application/json",
-            "idempotency-key": key,
+          {
+            method: "DELETE",
+            headers: {
+              accept: "application/json",
+              "content-type": "application/json",
+              "idempotency-key": key,
+            },
+            body: JSON.stringify(await body(req)),
           },
-          body: JSON.stringify(await body(req)),
-        });
-        const payload = await upstream.json();
-        if (!upstream.ok) {
+        );
+        const { ok, status, payload } = upstream;
+        if (!ok) {
           const error = new Error(payload.code || "PROJECT_DELETE_FAILED");
-          error.statusCode = upstream.status;
+          error.statusCode = status;
           throw error;
         }
         const cleanup = deleteProjectState(projectDeleteMatch[1], key);
@@ -2765,7 +2295,11 @@ const server = http.createServer(async (req, res) => {
       return res.end(fs.readFileSync(htmlPath));
     }
     if (u.pathname.startsWith("/assets/") && req.method === "GET")
-      return serveWebAsset(res, u.pathname.slice("/assets/".length));
+      return serveStaticWebAsset({
+        res,
+        webRoot,
+        relativePath: u.pathname.slice("/assets/".length),
+      });
     if (u.pathname.startsWith("/api/")) return await proxyCompat(req, res);
     return json(res, 404, { ok: false, code: "NOT_FOUND" });
   } catch (error) {
