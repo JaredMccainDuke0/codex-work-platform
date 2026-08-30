@@ -300,7 +300,11 @@ test(
       fs.existsSync(path.join(installRoot, "start-workbench.cmd")),
       true,
     );
-    assert.equal((await diagnosePlatform({ installRoot })).status, "PASS");
+    assert.equal(
+      (await diagnosePlatform({ installRoot: installRoot.toUpperCase() }))
+        .status,
+      "PASS",
+    );
   },
 );
 
