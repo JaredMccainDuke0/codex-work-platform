@@ -4,6 +4,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/JaredMccainDuke0/codex-work-platform?include_prereleases)](https://github.com/JaredMccainDuke0/codex-work-platform/releases)
 
+[简体中文](README.zh-CN.md) · [Latest Release](https://github.com/JaredMccainDuke0/codex-work-platform/releases/latest) · [User guide](docs/user-guide.md)
+
 Codex Work Platform is a local-first desktop workbench for planning and
 running Codex workflows. It provides projects, dependency-aware workflows,
 approval gates, live progress, conversation history, artifacts, backups, and
@@ -20,8 +22,8 @@ when the operating system is configured for dark mode.
 ## Requirements
 
 - Windows 10/11, macOS arm64, or Linux for development;
-- Node.js 22.5 or newer;
-- the current Codex CLI;
+- [Node.js 22.5 or newer](https://nodejs.org/en/download);
+- the [current Codex CLI](https://learn.chatgpt.com/docs/codex/cli);
 - an official ChatGPT/Codex account authenticated locally with `codex login`.
 
 The control database uses Node's built-in SQLite support. Node 22.5–22.12 may
@@ -36,7 +38,89 @@ The first run uses the official ChatGPT login path. The workbench never copies
 `auth.json`, API keys, or tokens into the repository, release package, logs, or
 project history.
 
-## Quick start (development)
+## Install in five minutes
+
+### 1. Check Node.js and Codex
+
+Open PowerShell or Terminal:
+
+```text
+node --version
+codex --version
+codex login
+codex login status
+```
+
+`codex login status` must report `Logged in using ChatGPT`. If you just installed
+Node.js or Codex, open a new terminal before retrying.
+
+### 2. Download and verify the Release
+
+Open the [latest GitHub Release](https://github.com/JaredMccainDuke0/codex-work-platform/releases/latest):
+
+| System                | Recommended asset                               |
+| --------------------- | ----------------------------------------------- |
+| Windows x64           | `codex-work-platform-v1.1.1-windows-x64.zip`    |
+| macOS arm64           | `codex-work-platform-v1.1.1-macos-arm64.tar.gz` |
+| Linux x64 development | `codex-work-platform-v1.1.1-linux-x64.tar.gz`   |
+
+Each archive has a neighboring `.sha256` sidecar. Verify it before running any
+script; exact commands are in the [user guide](docs/user-guide.md).
+
+### 3. Extract, install, and start
+
+Windows: extract the ZIP completely, then double-click `install-windows.cmd`.
+The equivalent PowerShell command is:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1 -Start
+```
+
+macOS:
+
+```bash
+tar -xzf codex-work-platform-v1.1.1-macos-arm64.tar.gz
+cd <extracted-directory>
+chmod +x ./install-macos.command
+CWP_START=1 ./install-macos.command
+```
+
+The browser opens after `/readyz` succeeds. Keep the launcher window open while
+using the foreground service; press `Ctrl+C` to stop it. To start automatically
+after sign-in, follow the [autostart instructions](docs/user-guide.md#installed-lifecycle-commands).
+
+Default locations:
+
+| System  | Application                                 | Data                                              | Workspace                                |
+| ------- | ------------------------------------------- | ------------------------------------------------- | ---------------------------------------- |
+| Windows | `%LOCALAPPDATA%\Programs\CodexWorkPlatform` | `%LOCALAPPDATA%\CodexWorkPlatform\data`           | `%USERPROFILE%\Documents\CodexWorkspace` |
+| macOS   | `~/Applications/CodexWorkPlatform`          | `~/Library/Application Support/CodexWorkPlatform` | `~/Documents/CodexWorkspace`             |
+
+The portable file tree is reproducible and CI-verified; every generated archive
+has its own published SHA-256. The launcher scripts are not signed with a
+commercial Windows Authenticode certificate or an Apple Developer ID. Verify
+the published hash and do not disable platform security globally; see the
+[safe platform-specific steps](docs/user-guide.md).
+
+Automatic approval is never enabled by these commands unless the explicit
+`-AutoApproveHighRisk` (Windows) or `CWP_AUTO_APPROVE_HIGH_RISK=1` (macOS)
+option is supplied.
+
+## First workflow
+
+The Overview page shows a four-step onboarding checklist:
+
+1. Verify the real local Codex execution path. A cold probe can take up to two
+   minutes.
+2. Create a project and select a normal workspace directory.
+3. Create a workflow, add nodes, and save their order.
+4. Dispatch a run and review approvals and activity.
+
+App Server remains the preferred session adapter. If it is unavailable while
+the CLI is ready, the interface disables it and selects Local Codex CLI instead
+of dispatching to a broken default.
+
+## Development quick start
 
 ```bash
 npm ci
@@ -47,34 +131,11 @@ The development launcher creates ignored local data under `.local/`, starts
 both internal services, waits for readiness, and opens the local control page.
 Use `Ctrl+C` to stop the supervisor and its children.
 
-For an installed copy, run the generated `start-workbench.cmd` on Windows or
-`start-workbench.command` on macOS. The supervisor chooses the preferred
-loopback ports (19737/19738) when available, persists the actual pair, and
-prints the URL to open.
-
-On macOS or Linux, preserve the executable bit when extracting a tarball (or
-run `chmod +x install-macos.command start-workbench.command`).
-
-From a portable directory, install with:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\install-windows.ps1
-```
-
-```bash
-chmod +x ./install-macos.command
-./install-macos.command
-```
-
-Automatic approval is never enabled by these commands unless the explicit
-`-AutoApproveHighRisk` (Windows) or `CWP_AUTO_APPROVE_HIGH_RISK=1` (macOS)
-option is supplied.
-
 To create a portable directory locally:
 
 ```bash
-npm run build -- -- --output ./output/codex-work-platform-1.1.0-portable
-npm run verify-release -- ./output/codex-work-platform-1.1.0-portable
+npm run build -- -- --output ./output/codex-work-platform-1.1.1-portable
+npm run verify-release -- ./output/codex-work-platform-1.1.1-portable
 ```
 
 The extra `--` keeps option forwarding reliable across npm versions. You can
@@ -117,20 +178,14 @@ as legacy evidence; migration never deletes user data.
 
 ## User workflow
 
-1. Authenticate the local Codex CLI:
-
-   ```bash
-   codex login
-   codex login status
-   ```
-
-2. Open **Workflows** and set a normal project/workspace directory.
-3. Create a project, workflow, and one or more nodes.
+1. Complete `codex login`, then open **Overview** and verify the execution
+   environment. The verification button performs a real read-only CLI run.
+2. Open **Projects**, choose a normal workspace directory, and create a project.
+3. Create a workflow and one or more nodes.
 4. Add dependencies or use the visual order editor. Keyboard move controls
    are available when drag-and-drop is not convenient.
-5. Verify the execution environment.
-6. Run the workflow and handle approvals in **Approvals**.
-7. Follow live progress, events, artifacts, and Codex conversations in
+5. Run the workflow and handle approvals in **Approvals**.
+6. Follow live progress, events, artifacts, and Codex conversations in
    **Activity**. New App Server conversations appear without restarting the
    desktop client.
 
@@ -187,6 +242,11 @@ still starting), not that the workbench has a time limit. Start it again with
 the generated launcher and wait for the printed `/readyz` URL. The runtime
 lease and daily redacted log under the data root show the last state without
 requiring credentials or a browser cache.
+
+Environment verification can take up to two minutes because it performs a real
+read-only Codex execution. If App Server cannot initialize, the UI disables that
+adapter and selects Local Codex CLI. Update Codex and verify again to restore
+session-backed conversations.
 
 ## Compatibility runtime
 

@@ -76,6 +76,96 @@
               >Connecting…</span
             >
           </div>
+          <section
+            id="onboarding-panel"
+            class="panel onboarding-panel"
+            aria-labelledby="onboarding-title"
+          >
+            <div class="panel-heading onboarding-heading">
+              <div>
+                <p class="eyebrow" data-i18n="gettingStarted">GET STARTED</p>
+                <h3 id="onboarding-title" data-i18n="onboardingTitle">
+                  Your first local workflow
+                </h3>
+                <p class="muted" data-i18n="onboardingIntro">
+                  Complete these steps once. The workbench keeps your data on
+                  this computer.
+                </p>
+              </div>
+            </div>
+            <ol class="onboarding-grid">
+              <li id="onboarding-environment" class="onboarding-step">
+                <span class="step-marker" aria-hidden="true">1</span>
+                <div>
+                  <strong data-i18n="onboardingEnvironment"
+                    >Verify Codex</strong
+                  >
+                  <p
+                    id="onboarding-environment-status"
+                    class="muted"
+                    role="status"
+                  ></p>
+                </div>
+                <button
+                  id="onboarding-verify"
+                  class="button primary"
+                  type="button"
+                  data-i18n="verifyNow"
+                >
+                  Verify now
+                </button>
+              </li>
+              <li id="onboarding-project" class="onboarding-step">
+                <span class="step-marker" aria-hidden="true">2</span>
+                <div>
+                  <strong data-i18n="onboardingProject"
+                    >Create a project</strong
+                  >
+                  <p id="onboarding-project-status" class="muted"></p>
+                </div>
+                <button
+                  class="button secondary"
+                  type="button"
+                  data-go="projects"
+                  data-i18n="openProjects"
+                >
+                  Open projects
+                </button>
+              </li>
+              <li id="onboarding-workflow" class="onboarding-step">
+                <span class="step-marker" aria-hidden="true">3</span>
+                <div>
+                  <strong data-i18n="onboardingWorkflow"
+                    >Build a workflow</strong
+                  >
+                  <p id="onboarding-workflow-status" class="muted"></p>
+                </div>
+                <button
+                  class="button secondary"
+                  type="button"
+                  data-go="workflows"
+                  data-i18n="openWorkflows"
+                >
+                  Open workflows
+                </button>
+              </li>
+              <li id="onboarding-run" class="onboarding-step">
+                <span class="step-marker" aria-hidden="true">4</span>
+                <div>
+                  <strong data-i18n="onboardingRun">Run and review</strong>
+                  <p id="onboarding-run-status" class="muted"></p>
+                </div>
+                <button
+                  class="button secondary"
+                  type="button"
+                  data-go="workflows"
+                  data-i18n="dispatchFirstRun"
+                >
+                  Dispatch a run
+                </button>
+              </li>
+            </ol>
+          </section>
           <div
             id="summary"
             class="metric-grid"

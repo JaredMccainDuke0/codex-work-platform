@@ -285,6 +285,56 @@ for (const record of vendor.files || []) {
       findings.push({ type: "vendor-file-mismatch", path: record.path });
   }
 }
+const onboardingContracts = [
+  {
+    path: "README.md",
+    patterns: [
+      /releases\/latest/,
+      /windows-x64\.zip/,
+      /Keep the launcher window open/,
+      /docs\/user-guide\.md/,
+    ],
+  },
+  {
+    path: "README.zh-CN.md",
+    patterns: [/releases\/latest/, /windows-x64\.zip/, /保持启动窗口打开/],
+  },
+  {
+    path: "installer/install-windows.cmd",
+    patterns: [/install-windows\.ps1/, /-Start/],
+  },
+  {
+    path: "docs/user-guide.md",
+    patterns: [/Installed lifecycle commands/, /codex login status/],
+  },
+  {
+    path: ".github/workflows/release.yml",
+    patterns: [/Package release \(Windows ZIP\)/, /\.zip"/],
+  },
+];
+for (const contract of onboardingContracts) {
+  const absolute = path.join(root, contract.path);
+  if (!fs.existsSync(absolute)) {
+    findings.push({ type: "onboarding-file-missing", path: contract.path });
+    continue;
+  }
+  const content = fs.readFileSync(absolute, "utf8");
+  for (const pattern of contract.patterns)
+    if (!pattern.test(content))
+      findings.push({
+        type: "onboarding-contract-missing",
+        path: contract.path,
+        pattern: pattern.source,
+      });
+}
+const windowsInstallerBytes = fs.readFileSync(
+  path.join(root, "installer", "install-windows.ps1"),
+);
+if (windowsInstallerBytes.some((value) => value > 127))
+  findings.push({
+    type: "windows-powershell-non-ascii",
+    path: "installer/install-windows.ps1",
+  });
 const releaseMode =
   process.argv.includes("--release") ||
   process.env.npm_config_release === "true";

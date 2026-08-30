@@ -200,15 +200,162 @@ test("cross-platform installer contracts enable network and automatic approval p
     path.join(root, "installer", "install-macos.command"),
     "utf8",
   );
+  const windowsLauncher = await readFile(
+    path.join(root, "installer", "install-windows.cmd"),
+    "utf8",
+  );
   const supervisor = await readFile(
     path.join(root, "installer", "workbench-supervisor.mjs"),
     "utf8",
   );
   assert.match(windowsScript, /--allow-web-search[\s\S]*true/);
   assert.match(macScript, /--allow-web-search true/);
+  assert.equal(
+    Buffer.from(windowsScript, "utf8").some((value) => value > 127),
+    false,
+    "Windows PowerShell 5.1 installer source must remain ASCII",
+  );
+  assert.match(windowsScript, /\\u5b89\\u88c5\\u5b8c\\u6210/);
+  assert.match(macScript, /Installation completed.*安装完成/);
+  assert.match(windowsLauncher, /chcp 65001/);
+  assert.match(windowsLauncher, /install-windows\.ps1" -Start/);
   assert.match(supervisor, /autoApproveHighRisk/);
   assert.match(supervisor, /--auto-approve-high-risk/);
 });
+
+test(
+  "Windows double-click installer emits bilingual guidance and installs from a ZIP-shaped directory",
+  { skip: process.platform !== "win32", timeout: 120_000 },
+  async (t) => {
+    const temporary = await mkdtemp(
+      path.join(os.tmpdir(), "cwp-script-install-"),
+    );
+    t.after(() => rm(temporary, { recursive: true, force: true }));
+    const releaseRoot = path.join(temporary, "extracted release");
+    const installRoot = path.join(temporary, "installed app");
+    const dataRoot = path.join(temporary, "installed data");
+    const workspaceRoot = path.join(temporary, "workspace");
+    const wrapperRoot = path.join(temporary, "codex wrapper");
+    const npmBin = path.join(
+      wrapperRoot,
+      "node_modules",
+      "@openai",
+      "codex",
+      "bin",
+    );
+    await mkdir(npmBin, { recursive: true });
+    await writeFile(
+      path.join(
+        wrapperRoot,
+        "node_modules",
+        "@openai",
+        "codex",
+        "package.json",
+      ),
+      '{"type":"module"}\n',
+      "utf8",
+    );
+    const localFixture = path.join(npmBin, "codex.js");
+    await cp(fixture, localFixture);
+    const wrapper = path.join(wrapperRoot, "codex.cmd");
+    await writeFile(
+      wrapper,
+      `@echo off\r\n"${process.execPath}" "${localFixture}" %*\r\n`,
+      "utf8",
+    );
+    buildPortableRelease(releaseRoot);
+    const child = spawn(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        path.join(releaseRoot, "install-windows.ps1"),
+        "-InstallRoot",
+        installRoot,
+        "-DataRoot",
+        dataRoot,
+        "-WorkspaceRoot",
+        workspaceRoot,
+        "-CodexCommand",
+        wrapper,
+      ],
+      {
+        cwd: releaseRoot,
+        env: { ...process.env, FAKE_CODEX_AUTH: "1" },
+        windowsHide: true,
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => (stdout += chunk));
+    child.stderr.on("data", (chunk) => (stderr += chunk));
+    const code = await new Promise((resolve) => child.once("close", resolve));
+    assert.equal(code, 0, stderr || stdout);
+    assert.match(stdout, /Installation completed \/ 安装完成/);
+    assert.match(stdout, /Launcher \/ 启动入口/);
+    assert.equal(
+      fs.existsSync(path.join(installRoot, "start-workbench.cmd")),
+      true,
+    );
+    assert.equal(
+      (await diagnosePlatform({ installRoot: installRoot.toUpperCase() }))
+        .status,
+      "PASS",
+    );
+  },
+);
+
+test(
+  "POSIX installer emits bilingual guidance and installs from an extracted archive",
+  { skip: process.platform === "win32", timeout: 120_000 },
+  async (t) => {
+    const temporary = await mkdtemp(
+      path.join(os.tmpdir(), "cwp-script-install-"),
+    );
+    t.after(() => rm(temporary, { recursive: true, force: true }));
+    const releaseRoot = path.join(temporary, "extracted release");
+    const installRoot = path.join(temporary, "installed app");
+    const dataRoot = path.join(temporary, "installed data");
+    const workspaceRoot = path.join(temporary, "workspace");
+    const localFixture = path.join(temporary, "fake-codex-cli.mjs");
+    await cp(fixture, localFixture);
+    const wrapper = path.join(temporary, "fake codex");
+    await writeFile(
+      wrapper,
+      `#!/bin/sh\nexec "${process.execPath}" "${localFixture}" "$@"\n`,
+      "utf8",
+    );
+    await chmod(wrapper, 0o755);
+    buildPortableRelease(releaseRoot);
+    const child = spawn(path.join(releaseRoot, "install-macos.command"), [], {
+      cwd: releaseRoot,
+      env: {
+        ...process.env,
+        FAKE_CODEX_AUTH: "1",
+        CWP_CODEX_COMMAND: wrapper,
+        CWP_INSTALL_ROOT: installRoot,
+        CWP_DATA_ROOT: dataRoot,
+        CWP_WORKSPACE_ROOT: workspaceRoot,
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => (stdout += chunk));
+    child.stderr.on("data", (chunk) => (stderr += chunk));
+    const code = await new Promise((resolve) => child.once("close", resolve));
+    assert.equal(code, 0, stderr || stdout);
+    assert.match(stdout, /Installation completed \/ 安装完成/);
+    assert.match(stdout, /Launcher \/ 启动入口/);
+    assert.equal(
+      fs.existsSync(path.join(installRoot, "start-workbench.command")),
+      true,
+    );
+  },
+);
 
 test(
   "portable install runs, backs up, rejects corruption and restores into new roots",

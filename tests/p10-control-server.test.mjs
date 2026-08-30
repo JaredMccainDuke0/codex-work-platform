@@ -41,6 +41,16 @@ async function waitForHealth(url) {
   throw new Error("P10_TEST_SERVER_NOT_READY");
 }
 
+async function waitForReady(url) {
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    try {
+      if ((await fetch(`${url}/readyz`)).ok) return;
+    } catch {}
+    await sleep(100);
+  }
+  throw new Error("P10_TEST_SERVER_NOT_READY");
+}
+
 async function getFreePort() {
   while (true) {
     const server = http.createServer();
@@ -1234,7 +1244,7 @@ test("invalid compatibility responses do not leave project directories", async (
     await new Promise((resolve) => compat.close(resolve));
     await rm(dir, { recursive: true, force: true });
   });
-  await waitForHealth(url);
+  await waitForReady(url);
   const response = await fetch(`${url}/api/projects`, {
     method: "POST",
     headers: { "content-type": "application/json" },

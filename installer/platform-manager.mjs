@@ -644,6 +644,24 @@ export async function installPlatform(input = {}) {
   }
 }
 
+function canonicalExistingPath(value) {
+  const resolved = path.resolve(value);
+  try {
+    return fs.realpathSync.native(resolved);
+  } catch {
+    return resolved;
+  }
+}
+
+function equivalentPath(left, right) {
+  const canonicalLeft = canonicalExistingPath(left);
+  const canonicalRight = canonicalExistingPath(right);
+  return (
+    pathWithin(canonicalLeft, canonicalRight) &&
+    pathWithin(canonicalRight, canonicalLeft)
+  );
+}
+
 function loadInstallation(installRootInput) {
   const installRoot = assertNarrowRoot(installRootInput, "installRoot");
   const recordPath = path.join(installRoot, INSTALLATION_RECORD);
@@ -655,7 +673,7 @@ function loadInstallation(installRootInput) {
     record.product !== PRODUCT
   )
     throw Error("INSTALLATION_RECORD_INVALID");
-  if (path.resolve(record.installRoot) !== path.resolve(installRoot))
+  if (!equivalentPath(record.installRoot, installRoot))
     throw Error("INSTALLATION_ROOT_BINDING_INVALID");
   const recordDataRoot = assertNarrowRoot(record.dataRoot, "dataRoot");
   const recordWorkspaceRoot = assertWorkspaceRoot(record.workspaceRoot);
@@ -739,7 +757,7 @@ function loadInstallation(installRootInput) {
         path.join(config.dataRoot, "platform.sqlite.p10.json"),
     ],
   ]) {
-    if (path.resolve(config[field]) !== path.resolve(expected))
+    if (!equivalentPath(config[field], expected))
       throw Error(`PLATFORM_CONFIG_BINDING_INVALID:${field}`);
   }
   if (normalizedConfig) atomicJson(configPath, config);
@@ -1213,7 +1231,13 @@ export async function backupPlatform(input = {}) {
     "status",
     installation.config.databasePath,
   );
-  readControlState(installation.config);
+  try {
+    readControlState(installation.config);
+  } catch (error) {
+    if (/^CONTROL_DB_IN_USE:/.test(String(error?.message || error)))
+      throw Error("WORKBENCH_RUNNING_STOP_REQUIRED");
+    throw error;
+  }
 
   const defaults = defaultRoots();
   const backupRoot = assertNarrowRoot(
