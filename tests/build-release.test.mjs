@@ -34,6 +34,16 @@ test("portable build honors an explicit output path and is independently verifia
   const verified = verifyPortableRelease(output);
   assert.equal(verified.manifest.version, PRODUCT_VERSION);
   assert.equal(verified.treeSha256, result.treeSha256);
+  assert.equal(
+    await readFile(path.join(output, "install-windows.cmd"), "utf8").then(
+      (value) => value.includes("install-windows.ps1"),
+    ),
+    true,
+  );
+  assert.match(
+    await readFile(path.join(output, "docs", "user-guide.md"), "utf8"),
+    /Installed lifecycle commands/,
+  );
 });
 
 test("build CLI accepts npm's forwarded argument separator", async (t) => {

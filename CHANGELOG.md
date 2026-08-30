@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-08-30
+
+- Fix Windows Codex App Server startup for PATH commands and `.cmd` wrappers,
+  including paths with spaces, and fall back to Local Codex CLI when App Server
+  is unavailable.
+- Give real environment probes an explicit two-minute browser budget and cover
+  the formerly failing 15-second boundary in browser regression tests.
+- Add a first-run checklist, bilingual human-readable installers, a Windows
+  double-click entry point, a complete user lifecycle guide, and equal English
+  and Chinese Release installation instructions.
+- Publish a Windows ZIP asset alongside the portable tarball and document the
+  checksum and unsigned-script trust boundary without weakening OS security.
+
 ## [1.1.0] - 2026-08-30
 
 - Extract control-service configuration, HTTP, path security, error mapping,
@@ -33,7 +46,8 @@
   verification.
 - English-first interface with a switchable Chinese locale.
 
-[Unreleased]: https://github.com/JaredMccainDuke0/codex-work-platform/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/JaredMccainDuke0/codex-work-platform/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/JaredMccainDuke0/codex-work-platform/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/JaredMccainDuke0/codex-work-platform/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/JaredMccainDuke0/codex-work-platform/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/JaredMccainDuke0/codex-work-platform/releases/tag/v1.0.0

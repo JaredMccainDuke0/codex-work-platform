@@ -7,6 +7,20 @@ function jsonLine(value) {
 }
 const sleep = (milliseconds) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
+const safeProcessDetail = (value) =>
+  String(value ?? "")
+    .replace(/\b(?:sk|rk|pk)-[A-Za-z0-9_-]{12,}\b/g, "[REDACTED]")
+    .replace(
+      /\bBearer\s+[A-Za-z0-9._~+\/-]{16,}={0,2}\b/gi,
+      "Bearer [REDACTED]",
+    )
+    .replace(
+      /\b(?:access[_-]?token|refresh[_-]?token|api[_-]?key)\s*[:=]\s*[^\s,;]+/gi,
+      "credential=[REDACTED]",
+    )
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 500);
 
 async function terminateChild(child, force = false) {
   if (!child?.pid || child.exitCode !== null) return;
@@ -27,19 +41,22 @@ async function terminateChild(child, force = false) {
   } catch {}
 }
 
-function spawnSpec(command, args) {
-  if (process.platform !== "win32") return { command, args, shell: false };
+export function appServerSpawnSpec(command, args, platform = process.platform) {
+  if (platform !== "win32") return { command, args, shell: false };
   if (path.isAbsolute(command) && !/\.(cmd|bat)$/i.test(command))
     return { command, args, shell: false };
-  if (args.some((value) => /[&|<>^%\r\n]/.test(String(value))))
+  if (
+    /[&|<>^%\r\n]/.test(String(command)) ||
+    args.some((value) => /[&|<>^%\r\n]/.test(String(value)))
+  )
     throw Error("CODEX_ARGUMENT_UNSAFE");
-  const rendered = [command, ...args]
-    .map((value) => `"${String(value).replaceAll('"', '\\"')}"`)
-    .join(" ");
+  const quote = (value) => `"${String(value).replaceAll('"', '""')}"`;
+  const rendered = [command, ...args].map(quote).join(" ");
   return {
     command: process.env.ComSpec || "cmd.exe",
-    args: ["/d", "/s", "/c", rendered],
+    args: ["/d", "/s", "/c", `"${rendered}"`],
     shell: false,
+    windowsVerbatimArguments: true,
   };
 }
 
@@ -65,13 +82,14 @@ export class CodexAppServerClient {
     this.pending = new Map();
     this.started = false;
     this.initialized = false;
+    this.stderr = "";
   }
 
   async start() {
     if (this.started) return this;
     if (/[&|<>^\r\n]/.test(String(this.command)))
       throw Error("CODEX_COMMAND_UNSAFE");
-    const spec = spawnSpec(this.command, [
+    const spec = appServerSpawnSpec(this.command, [
       ...this.commandPrefix,
       "app-server",
       "--stdio",
@@ -80,14 +98,20 @@ export class CodexAppServerClient {
       cwd: this.cwd,
       env: this.env,
       windowsHide: true,
+      windowsVerbatimArguments: spec.windowsVerbatimArguments === true,
       stdio: ["pipe", "pipe", "pipe"],
       shell: spec.shell,
     });
+    this.stderr = "";
     this.started = true;
     this.child.stdout.setEncoding("utf8");
     this.child.stdout.on("data", (chunk) => this.#consume(chunk));
     this.child.stderr.setEncoding("utf8");
-    this.child.stderr.on("data", (chunk) => this.onStderr(String(chunk)));
+    this.child.stderr.on("data", (chunk) => {
+      const text = String(chunk);
+      this.stderr = `${this.stderr}${text}`.slice(-2000);
+      this.onStderr(text);
+    });
     this.child.once("error", (error) => {
       this.#failAll(error);
       this.started = false;
@@ -95,8 +119,11 @@ export class CodexAppServerClient {
       this.child = null;
     });
     this.child.once("close", (code, signal) => {
+      const detail = safeProcessDetail(this.stderr);
       this.#failAll(
-        new Error(`CODEX_APP_SERVER_EXIT:${code ?? "unknown"}:${signal ?? ""}`),
+        new Error(
+          `CODEX_APP_SERVER_EXIT:${code ?? "unknown"}:${signal ?? ""}${detail ? `:${detail}` : ""}`,
+        ),
       );
       this.started = false;
       this.initialized = false;

@@ -1213,7 +1213,13 @@ export async function backupPlatform(input = {}) {
     "status",
     installation.config.databasePath,
   );
-  readControlState(installation.config);
+  try {
+    readControlState(installation.config);
+  } catch (error) {
+    if (/^CONTROL_DB_IN_USE:/.test(String(error?.message || error)))
+      throw Error("WORKBENCH_RUNNING_STOP_REQUIRED");
+    throw error;
+  }
 
   const defaults = defaultRoots();
   const backupRoot = assertNarrowRoot(

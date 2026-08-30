@@ -10,7 +10,7 @@ npm test
 npm run test:coverage
 npm run test:e2e
 npm run public-audit:release
-node scripts/check-version.mjs --tag v1.1.0
+node scripts/check-version.mjs --tag v1.1.1
 npm run build:clean
 npm run verify-release
 ```
@@ -22,9 +22,15 @@ keeps at most one recoverable `.previous-*` sibling; `build:clean` retains none,
 so repeated release checks do not accumulate obsolete packages.
 
 GitHub Actions repeats the checks on Linux, Windows, and macOS arm64 runners
-and publishes one tarball plus a `.sha256` sidecar per runner. A passing CI
-job is not a substitute for a physical-device installation; that acceptance
-must be reported separately.
+and publishes one tarball plus a `.sha256` sidecar per runner. Windows also
+publishes a ZIP with its own sidecar, then expands and verifies that ZIP before
+upload. A passing CI job is not a substitute for a physical-device
+installation; that acceptance must be reported separately.
+
+Release scripts are checksum-verifiable but are not described as commercially
+code-signed until a trusted Authenticode certificate and Apple Developer ID are
+actually configured. Never substitute a self-signed development certificate
+for that claim.
 
 The vendored compatibility runtime is released only when
 `vendor/compat-runtime/SOURCES.json` and

@@ -46,6 +46,15 @@ jobs:
       - run: npm run public-audit:release
       - run: node --experimental-sqlite bin/build-p10-release.mjs --output output/.ci-release
       - run: node --experimental-sqlite bin/build-p10-release.mjs --verify --output output/.ci-release
+      - name: Verify Windows ZIP packaging
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'codex-work-platform-ci-windows-x64.zip'
+          $expanded = Join-Path $env:RUNNER_TEMP 'codex-work-platform-ci-windows-x64-expanded'
+          Compress-Archive -Path 'output/.ci-release/*' -DestinationPath $archive -CompressionLevel Optimal
+          Expand-Archive -LiteralPath $archive -DestinationPath $expanded
+          node --experimental-sqlite bin/build-p10-release.mjs --verify --output $expanded
 
   browser:
     runs-on: ubuntu-latest

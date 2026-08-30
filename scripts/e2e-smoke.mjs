@@ -74,12 +74,59 @@ try {
     viewport: { width: 1440, height: 900 },
     colorScheme: "dark",
   });
+  const environmentPayload = (verified) => ({
+    ok: true,
+    workspaceRoot: temp,
+    allowedRoots: [temp],
+    adapters: [
+      { adapter: "mock", available: true, authenticated: true },
+      {
+        adapter: "local-codex-cli",
+        available: true,
+        authenticated: true,
+        provider: { name: "openai", label: "OpenAI official" },
+        capabilities: { executionVerified: verified },
+      },
+      {
+        adapter: "local-codex-app-server",
+        available: verified,
+        authenticated: true,
+        capabilities: { executionVerified: verified },
+        reason: verified ? null : "CODEX_APP_SERVER_UNAVAILABLE",
+      },
+    ],
+  });
+  await page.route("**/api/p10/codex/status*", async (route) => {
+    const verify =
+      new URL(route.request().url()).searchParams.get("verify") === "1";
+    if (verify) await sleep(16_000);
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(environmentPayload(verify)),
+    });
+  });
   const errors = [];
   page.on("console", (message) => {
     if (message.type() === "error") errors.push(message.text());
   });
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${webPort}/`, { waitUntil: "networkidle" });
+  await page
+    .getByRole("heading", { name: "Your first local workflow" })
+    .waitFor();
+  if ((await page.locator("#run-adapter").inputValue()) !== "local-codex-cli")
+    throw Error("E2E_APP_SERVER_FALLBACK_MISSING");
+  if (
+    !(await page
+      .locator('#run-adapter option[value="local-codex-app-server"]')
+      .evaluate((option) => option.disabled))
+  )
+    throw Error("E2E_UNAVAILABLE_APP_SERVER_NOT_DISABLED");
+  await page.getByRole("button", { name: "Verify now" }).click();
+  await page
+    .getByText("CLI and App Server are ready.", { exact: true })
+    .first()
+    .waitFor({ timeout: 30_000 });
   if (
     (await page
       .getByRole("button", { name: "Overview" })

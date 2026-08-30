@@ -147,6 +147,34 @@ const translations = {
     policyAutomatic: "Approval policy: automatic (explicitly enabled).",
     policyManualNetworkOff:
       "Approval policy: manual by default. Network search is disabled.",
+    gettingStarted: "GET STARTED",
+    onboardingTitle: "Your first local workflow",
+    onboardingIntro:
+      "Complete these steps once. The workbench keeps your data on this computer.",
+    onboardingEnvironment: "Verify Codex",
+    onboardingProject: "Create a project",
+    onboardingWorkflow: "Build a workflow",
+    onboardingRun: "Run and review",
+    verifyNow: "Verify now",
+    openProjects: "Open projects",
+    openWorkflows: "Open workflows",
+    dispatchFirstRun: "Dispatch a run",
+    stepComplete: "Complete",
+    environmentPending: "Confirm the CLI, ChatGPT login, and execution path.",
+    projectPending: "Choose a local workspace and name the project.",
+    workflowPending: "Add one or more nodes and save their order.",
+    runPending: "Dispatch a task and review its approvals and activity.",
+    environmentReady: "CLI and App Server are ready.",
+    environmentCliFallback:
+      "CLI is ready; App Server is unavailable, so CLI is selected.",
+    environmentUnavailable:
+      "Codex is not ready. Install or sign in, then verify again.",
+    verificationTakesTime:
+      "Running a real read-only probe; this can take up to two minutes.",
+    verificationTimedOut:
+      "Verification did not finish in two minutes. Check Activity or try again.",
+    appServerUnavailable: "Local Codex App Server (unavailable)",
+    localCli: "Local Codex CLI",
   },
   zh: {
     localWorkbench: "本地工作台",
@@ -293,6 +321,29 @@ const translations = {
     enterPrompt: "请输入提示。",
     moveUp: "上移",
     moveDown: "下移",
+    gettingStarted: "开始使用",
+    onboardingTitle: "创建你的第一个本机工作流",
+    onboardingIntro: "这些步骤只需完成一次；工作台数据保留在当前电脑中。",
+    onboardingEnvironment: "验证 Codex",
+    onboardingProject: "创建项目",
+    onboardingWorkflow: "编排工作流",
+    onboardingRun: "运行并检查结果",
+    verifyNow: "立即验证",
+    openProjects: "进入项目",
+    openWorkflows: "进入工作流",
+    dispatchFirstRun: "派发一次运行",
+    stepComplete: "已完成",
+    environmentPending: "确认 CLI、ChatGPT 登录和真实执行链路。",
+    projectPending: "选择本机工作目录并创建项目。",
+    workflowPending: "添加一个或多个节点并保存执行顺序。",
+    runPending: "派发任务，并在审批和活动页面检查结果。",
+    environmentReady: "CLI 和 App Server 均已就绪。",
+    environmentCliFallback: "CLI 已就绪；App Server 不可用，已自动选择 CLI。",
+    environmentUnavailable: "Codex 尚未就绪；请安装或登录后重新验证。",
+    verificationTakesTime: "正在执行真实只读探针，最多可能需要两分钟。",
+    verificationTimedOut: "两分钟内未完成验证；请检查活动记录或重试。",
+    appServerUnavailable: "本机 Codex App Server（不可用）",
+    localCli: "本机 Codex CLI",
   },
 };
 const zh = translations.zh;
@@ -312,6 +363,12 @@ let eventBefore = Number.MAX_SAFE_INTEGER;
 let toastTimer = null;
 let conversationRequest = null;
 let briefRequest = null;
+let environmentState = {
+  checking: true,
+  cliAvailable: false,
+  cliReady: false,
+  appServerReady: false,
+};
 
 function text(value) {
   return document.createTextNode(String(value ?? ""));
@@ -416,8 +473,9 @@ function selectedGraph() {
   };
 }
 async function api(url, options = {}) {
-  const method = String(options.method || "GET").toUpperCase();
-  const headers = new Headers(options.headers || {});
+  const { timeoutMs = 15_000, ...requestOptions } = options;
+  const method = String(requestOptions.method || "GET").toUpperCase();
+  const headers = new Headers(requestOptions.headers || {});
   if (method !== "GET" && method !== "HEAD") {
     headers.set("content-type", "application/json");
     headers.set(
@@ -427,17 +485,19 @@ async function api(url, options = {}) {
     if (requestToken) headers.set("x-cwp-request-token", requestToken);
   }
   const timeoutSignal =
-    !options.signal &&
+    !requestOptions.signal &&
+    Number.isFinite(timeoutMs) &&
+    timeoutMs > 0 &&
     typeof AbortSignal !== "undefined" &&
     typeof AbortSignal.timeout === "function"
-      ? AbortSignal.timeout(15_000)
+      ? AbortSignal.timeout(timeoutMs)
       : undefined;
   const response = await fetch(url, {
-    ...options,
+    ...requestOptions,
     method,
     headers,
-    signal: options.signal || timeoutSignal,
-    cache: options.cache || "no-store",
+    signal: requestOptions.signal || timeoutSignal,
+    cache: requestOptions.cache || "no-store",
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw Error(payload.code || `HTTP_${response.status}`);
@@ -669,6 +729,35 @@ function renderSummary() {
     item.append(l, v);
     node.append(item);
   });
+}
+function setOnboardingStep(id, complete, pendingText) {
+  const item = $(`onboarding-${id}`);
+  if (!item) return;
+  item.classList.toggle("complete", complete);
+  const status = $(`onboarding-${id}-status`);
+  if (status) status.textContent = complete ? t("stepComplete") : pendingText;
+  const action = item.querySelector("button");
+  if (action) action.hidden = complete;
+}
+function renderOnboarding() {
+  const panel = $("onboarding-panel");
+  if (!panel) return;
+  const projects = projectData.projects?.length || 0;
+  const workflows = latest?.workflows?.length || 0;
+  const runs = latest?.runs?.length || 0;
+  const environmentText = environmentState.cliReady
+    ? environmentState.appServerReady
+      ? t("environmentReady")
+      : t("environmentCliFallback")
+    : environmentState.checking || environmentState.cliAvailable
+      ? t("environmentPending")
+      : t("environmentUnavailable");
+  setOnboardingStep("environment", environmentState.cliReady, environmentText);
+  setOnboardingStep("project", projects > 0, t("projectPending"));
+  setOnboardingStep("workflow", workflows > 0, t("workflowPending"));
+  setOnboardingStep("run", runs > 0, t("runPending"));
+  panel.hidden =
+    environmentState.cliReady && projects > 0 && workflows > 0 && runs > 0;
 }
 const orderDrafts = new Map();
 const orderKnownNodes = new Map();
@@ -1077,6 +1166,7 @@ async function loadConversation(threadId) {
 }
 function render() {
   renderSummary();
+  renderOnboarding();
   renderWorkflows();
   renderRuns();
   renderApprovals();
@@ -1185,6 +1275,8 @@ async function loadProjects() {
       new URLSearchParams(location.search).get("project") ||
       projectData.projects[0]?.id;
     if (selected) await loadBrief(selected);
+    renderSummary();
+    renderOnboarding();
   } catch (error) {
     showToast(error.message, "error");
   }
@@ -1268,70 +1360,121 @@ async function act(url, body, method = "POST") {
   }
 }
 async function verifyEnvironment() {
-  const buttonNode = $("verify-environment");
-  buttonNode.disabled = true;
-  buttonNode.setAttribute("aria-busy", "true");
-  buttonNode.textContent = t("verifying");
+  const buttons = [$("verify-environment"), $("onboarding-verify")].filter(
+    Boolean,
+  );
+  buttons.forEach((buttonNode) => {
+    buttonNode.disabled = true;
+    buttonNode.setAttribute("aria-busy", "true");
+    buttonNode.textContent = t("verifying");
+  });
+  environmentState.checking = true;
+  $("environment-detail").textContent = t("verificationTakesTime");
+  renderOnboarding();
   try {
-    const payload = await api("/api/p10/codex/status?refresh=1&verify=1");
-    const local = payload.adapters.find(
-      (item) => item.adapter === "local-codex-cli",
-    );
-    const ready = Boolean(
-      local?.available &&
-      local?.authenticated &&
-      local?.capabilities?.executionVerified === true,
-    );
-    $("environment-dot").classList.toggle("ready", ready);
-    $("environment-title").textContent = ready
-      ? locale === "zh-CN"
-        ? "Codex CLI 已通过验证"
-        : "Codex CLI verified"
-      : locale === "zh-CN"
-        ? "Codex CLI 验证失败"
-        : "Codex CLI verification failed";
-    $("environment-detail").textContent =
-      local?.displayExecutionProbeDetail || local?.reason || "";
+    const payload = await api("/api/p10/codex/status?refresh=1&verify=1", {
+      timeoutMs: 135_000,
+    });
+    applyEnvironment(payload, true);
   } catch (error) {
-    $("environment-title").textContent = error.message;
+    environmentState.checking = false;
+    const timedOut =
+      error.name === "TimeoutError" ||
+      /timed? out|timeout/i.test(error.message);
+    $("environment-title").textContent = timedOut
+      ? t("verificationTimedOut")
+      : error.message;
+    renderOnboarding();
   } finally {
-    buttonNode.disabled = false;
-    buttonNode.removeAttribute("aria-busy");
-    buttonNode.textContent = t("verifyEnvironment");
+    buttons.forEach((buttonNode) => {
+      buttonNode.disabled = false;
+      buttonNode.removeAttribute("aria-busy");
+      buttonNode.textContent =
+        buttonNode.id === "onboarding-verify"
+          ? t("verifyNow")
+          : t("verifyEnvironment");
+    });
   }
+}
+function syncAdapterOptions(local, appServer) {
+  const appServerReady = Boolean(
+    appServer?.available &&
+    appServer?.authenticated &&
+    appServer?.capabilities?.executionVerified === true,
+  );
+  for (const id of ["node-adapter", "run-adapter"]) {
+    const select = $(id);
+    if (!select) continue;
+    const appOption = select.querySelector(
+      'option[value="local-codex-app-server"]',
+    );
+    const cliOption = select.querySelector('option[value="local-codex-cli"]');
+    if (appOption) {
+      appOption.disabled = !appServerReady;
+      appOption.textContent = appServerReady
+        ? t("appServer")
+        : t("appServerUnavailable");
+    }
+    if (cliOption) cliOption.textContent = t("localCli");
+    if (!appServerReady && select.value === "local-codex-app-server")
+      select.value = "local-codex-cli";
+  }
+  environmentState.appServerReady = appServerReady;
+  environmentState.cliAvailable = Boolean(
+    local?.available && local?.authenticated,
+  );
+  environmentState.cliReady = Boolean(
+    environmentState.cliAvailable &&
+    local?.capabilities?.executionVerified === true,
+  );
+  environmentState.checking = false;
+}
+function applyEnvironment(payload, verifiedRequest = false) {
+  const local = payload.adapters.find(
+    (item) => item.adapter === "local-codex-cli",
+  );
+  const appServer = payload.adapters.find(
+    (item) => item.adapter === "local-codex-app-server",
+  );
+  syncAdapterOptions(local, appServer);
+  const ready = environmentState.cliReady;
+  $("environment-dot").classList.toggle("ready", ready);
+  $("environment-title").textContent = ready
+    ? environmentState.appServerReady
+      ? t("environmentReady")
+      : t("environmentCliFallback")
+    : local?.available
+      ? verifiedRequest
+        ? locale === "zh-CN"
+          ? "Codex CLI 验证失败"
+          : "Codex CLI verification failed"
+        : locale === "zh-CN"
+          ? "Codex CLI 已检测，尚未执行验证"
+          : "Codex CLI detected; execution not verified"
+      : locale === "zh-CN"
+        ? "未检测到可用的 Codex CLI"
+        : "Codex CLI unavailable";
+  $("environment-detail").textContent =
+    local?.displayExecutionProbeDetail ||
+    local?.reason ||
+    appServer?.reason ||
+    "";
+  const providerLabel = local?.provider?.label || local?.provider?.name || "";
+  $("environment-provider").textContent = providerLabel
+    ? `${t("providerLabel")}${locale === "en" && providerLabel === "OpenAI 官方" ? "OpenAI official" : providerLabel}`
+    : "";
+  $("environment-workspace").textContent =
+    `${t("allowedWorkspaces")}${(payload.allowedRoots || []).join(" · ")}`;
+  renderOnboarding();
 }
 async function loadEnvironment() {
   try {
-    const payload = await api("/api/p10/codex/status");
-    const local = payload.adapters.find(
-      (item) => item.adapter === "local-codex-cli",
-    );
-    const ready = Boolean(
-      local?.available &&
-      local?.authenticated &&
-      local?.capabilities?.executionVerified === true,
-    );
-    $("environment-dot").classList.toggle("ready", ready);
-    $("environment-title").textContent = ready
-      ? locale === "zh-CN"
-        ? "Codex CLI 已通过验证"
-        : "Codex CLI verified"
-      : local?.available
-        ? locale === "zh-CN"
-          ? "Codex CLI 已检测，尚未执行验证"
-          : "Codex CLI detected; execution not verified"
-        : locale === "zh-CN"
-          ? "未检测到可用的 Codex CLI"
-          : "Codex CLI unavailable";
-    $("environment-detail").textContent = local?.reason || "";
-    const providerLabel = local?.provider?.label || local?.provider?.name || "";
-    $("environment-provider").textContent = providerLabel
-      ? `${t("providerLabel")}${locale === "en" && providerLabel === "OpenAI 官方" ? "OpenAI official" : providerLabel}`
-      : "";
-    $("environment-workspace").textContent =
-      `${t("allowedWorkspaces")}${(payload.allowedRoots || []).join(" · ")}`;
+    const payload = await api("/api/p10/codex/status", { timeoutMs: 45_000 });
+    applyEnvironment(payload, false);
   } catch (error) {
+    environmentState.checking = false;
     $("environment-title").textContent = error.message;
+    renderOnboarding();
   }
 }
 async function waitUntilReady() {
@@ -1487,6 +1630,7 @@ function bindForms() {
   });
   $("event-filter").addEventListener("input", renderEvents);
   $("verify-environment").addEventListener("click", verifyEnvironment);
+  $("onboarding-verify").addEventListener("click", verifyEnvironment);
   all("[data-view]").forEach((node) =>
     node.addEventListener("click", () => setView(node.dataset.view)),
   );

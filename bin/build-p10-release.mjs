@@ -85,6 +85,7 @@ const mapping = [
   ["installer/platform-manager.mjs", "bin/platform-manager.mjs"],
   ["installer/workbench-supervisor.mjs", "bin/workbench-supervisor.mjs"],
   ["installer/install-windows.ps1", "install-windows.ps1"],
+  ["installer/install-windows.cmd", "install-windows.cmd"],
   ["installer/install-macos.command", "install-macos.command"],
   ["README.md", "README.md"],
   ["README.zh-CN.md", "README.zh-CN.md"],
@@ -99,6 +100,7 @@ const mapping = [
   ["docs/api.md", "docs/api.md"],
   ["docs/migrations.md", "docs/migrations.md"],
   ["docs/release.md", "docs/release.md"],
+  ["docs/user-guide.md", "docs/user-guide.md"],
   ["vendor/compat-runtime/SOURCES.json", "vendor/compat-runtime/SOURCES.json"],
   ["vendor/compat-runtime/CONTRACT.md", "vendor/compat-runtime/CONTRACT.md"],
   [

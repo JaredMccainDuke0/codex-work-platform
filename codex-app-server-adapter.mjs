@@ -169,6 +169,7 @@ export class CodexAppServerAdapter {
     this.tasks = new Map();
     this.threadTasks = new Map();
     this.lastProbe = null;
+    this.lastProbeCheckedAtMs = 0;
   }
 
   #hasActiveTasks() {
@@ -294,6 +295,12 @@ export class CodexAppServerAdapter {
   }
 
   async probe(options = {}) {
+    if (
+      options.refresh !== true &&
+      this.lastProbe &&
+      Date.now() - this.lastProbeCheckedAtMs < 15_000
+    )
+      return this.lastProbe;
     const version = await capture(
       this.command,
       [...this.commandPrefix, "--version"],
@@ -345,6 +352,7 @@ export class CodexAppServerAdapter {
       },
     };
     this.lastProbe = result;
+    this.lastProbeCheckedAtMs = Date.now();
     return result;
   }
 
