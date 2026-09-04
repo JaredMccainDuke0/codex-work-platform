@@ -8,7 +8,7 @@ latest tagged release.
 ## Reporting a vulnerability
 
 Please do not open a public issue for a suspected vulnerability. Use a private
-[GitHub security advisory](https://github.com/JaredMccainDuke0/codex-work-platform/security/advisories/new)
+[GitHub security advisory](https://github.com/VELIR5/codex-work-platform/security/advisories/new)
 for this repository, or contact the repository owner through the private
 contact method listed on the repository profile. Include the affected version,
 operating system, reproduction steps, and a minimal proof of concept. Do not

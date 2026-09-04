@@ -4,10 +4,10 @@
   "description": "A local-first Codex workflow workbench with approvals, durable state, and recoverable execution.",
   "license": "MIT",
   "author": {
-    "name": "JaredMccainDuke0",
-    "url": "https://github.com/JaredMccainDuke0"
+    "name": "VELIR5",
+    "url": "https://github.com/VELIR5"
   },
-  "homepage": "https://github.com/JaredMccainDuke0/codex-work-platform#readme",
+  "homepage": "https://github.com/VELIR5/codex-work-platform#readme",
   "keywords": [
     "codex",
     "local-first",
@@ -32,10 +32,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/JaredMccainDuke0/codex-work-platform.git"
+    "url": "https://github.com/VELIR5/codex-work-platform.git"
   },
   "bugs": {
-    "url": "https://github.com/JaredMccainDuke0/codex-work-platform/issues"
+    "url": "https://github.com/VELIR5/codex-work-platform/issues"
   },
   "type": "module",
   "scripts": {

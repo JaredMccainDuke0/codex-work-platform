@@ -1,10 +1,10 @@
 # Codex Work Platform
 
-[![CI](https://github.com/JaredMccainDuke0/codex-work-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/JaredMccainDuke0/codex-work-platform/actions/workflows/ci.yml)
+[![CI](https://github.com/VELIR5/codex-work-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/VELIR5/codex-work-platform/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/JaredMccainDuke0/codex-work-platform?include_prereleases)](https://github.com/JaredMccainDuke0/codex-work-platform/releases)
+[![Release](https://img.shields.io/github/v/release/VELIR5/codex-work-platform?include_prereleases)](https://github.com/VELIR5/codex-work-platform/releases)
 
-[简体中文](README.zh-CN.md) · [Latest Release](https://github.com/JaredMccainDuke0/codex-work-platform/releases/latest) · [User guide](docs/user-guide.md)
+[简体中文](README.zh-CN.md) · [Latest Release](https://github.com/VELIR5/codex-work-platform/releases/latest) · [User guide](docs/user-guide.md)
 
 Codex Work Platform is a local-first desktop workbench for planning and
 running Codex workflows. It provides projects, dependency-aware workflows,
@@ -56,7 +56,7 @@ Node.js or Codex, open a new terminal before retrying.
 
 ### 2. Download and verify the Release
 
-Open the [latest GitHub Release](https://github.com/JaredMccainDuke0/codex-work-platform/releases/latest):
+Open the [latest GitHub Release](https://github.com/VELIR5/codex-work-platform/releases/latest):
 
 | System                | Recommended asset                               |
 | --------------------- | ----------------------------------------------- |

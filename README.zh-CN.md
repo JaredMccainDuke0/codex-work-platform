@@ -1,6 +1,6 @@
 # Codex 工作台
 
-[English](README.md) · [下载最新版](https://github.com/JaredMccainDuke0/codex-work-platform/releases/latest) · [完整用户指南](docs/user-guide.md)
+[English](README.md) · [下载最新版](https://github.com/VELIR5/codex-work-platform/releases/latest) · [完整用户指南](docs/user-guide.md)
 
 Codex 工作台是一套本机优先的 Codex 工作流工具，支持项目、依赖工作流、
 高风险审批、实时进度、会话历史、产物、备份和可恢复安装。它不提供云端
@@ -32,7 +32,7 @@ codex login status
 
 ### 1. 下载正确的 Release
 
-打开 [GitHub 最新 Release](https://github.com/JaredMccainDuke0/codex-work-platform/releases/latest)：
+打开 [GitHub 最新 Release](https://github.com/VELIR5/codex-work-platform/releases/latest)：
 
 | 系统           | 推荐下载文件                                    |
 | -------------- | ----------------------------------------------- |
